@@ -1,0 +1,137 @@
+import express from 'express'
+import mongoose from 'mongoose'
+import cors from 'cors'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+import animalRoutes from './routes/animalRoutes.js'
+import inquiryRoutes from './routes/inquiryRoutes.js'
+import analyticsRoutes from './routes/analyticsRoutes.js'
+import notificationRoutes from './routes/notificationRoutes.js'
+import searchRoutes from './routes/searchRoutes.js'
+import authRoutes from './routes/authRoutes.js'
+import reviewRoutes from './routes/reviewRoutes.js'
+import cartRoutes from './routes/cartRoutes.js'
+import userRoutes from './routes/userRoutes.js'
+import butcherRoutes from './routes/butcherRoutes.js'
+import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
+import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
+import { activityMiddleware } from './middleware/activityMiddleware.js'
+import { runCartReminderJob } from './jobs/cartReminderJob.js'
+import { runReengagementJob } from './jobs/reengagementJob.js'
+
+dotenv.config()
+const app = express()
+
+// ── Middleware ──
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+app.use(cors({ origin: FRONTEND_ORIGIN }))
+
+const jsonParser = express.json()
+app.use((req, res, next) => {
+  jsonParser(req, res, (err) => {
+    if (!err) return next()
+    const code = err.statusCode || err.status
+    if (code === 400 && err.type === 'entity.parse.failed') {
+      return res.status(400).json({ success: false, message: 'Invalid JSON body' })
+    }
+    return next(err)
+  })
+})
+app.use(express.urlencoded({ extended: true }))
+app.use(guestSessionMiddleware)
+app.use(optionalAuthMiddleware)
+app.use(activityMiddleware)
+
+// ── Ensure upload directories exist ──
+const uploadDirs = ['uploads/images', 'uploads/videos', 'uploads/butchers']
+uploadDirs.forEach(dir => {
+  const fullPath = path.join(__dirname, dir)
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true })
+    console.log(`📁 Created directory: ${dir}`)
+  }
+})
+
+// ── Serve uploaded files as static ──
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+
+// ── Routes ──
+app.use('/api/auth', authRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/animals', animalRoutes)
+app.use('/api/inquiries', inquiryRoutes)
+app.use('/api/analytics', analyticsRoutes)
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/search', searchRoutes)
+app.use('/api/reviews', reviewRoutes)
+app.use('/api/cart', cartRoutes)
+app.use('/api/butchers', butcherRoutes)
+
+// ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
+app.use((err, req, res, next) => {
+  if (!err) return next()
+  if (res.headersSent) return next(err)
+
+  const message = err.message || 'Request failed'
+  const code = err.code
+  const isClient =
+    code === 'LIMIT_FILE_SIZE' ||
+    /^Invalid (image|video) type\.|^Only images and videos|^Invalid JSON/i.test(message)
+
+  if (isClient) {
+    console.warn(`[${req.method} ${req.path}] ${message}`)
+  } else {
+    console.error(err)
+  }
+
+  if (code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ success: false, message: 'File too large (max 50MB per file)' })
+  }
+  const status =
+    typeof err.statusCode === 'number'
+      ? err.statusCode
+      : typeof err.status === 'number'
+        ? err.status
+        : isClient
+          ? 400
+          : 500
+  return res.status(status >= 400 && status < 600 ? status : 400).json({ success: false, message })
+})
+
+// ── MongoDB Connection ──
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/livestockshop'
+const PORT = process.env.PORT || 5000
+
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log('✅ MongoDB connected successfully')
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`)
+    })
+
+    console.log('⏱ Cart reminder job: every 60s (idle delay from CART_REMINDER_MINUTES, default 10)')
+    setTimeout(() => runCartReminderJob().catch(() => {}), 2000)
+    setInterval(() => {
+      runCartReminderJob().catch(() => {})
+    }, 60 * 1000)
+
+    // Run re-engagement job once every 24 hours
+    setInterval(() => {
+      runReengagementJob().catch(() => {})
+    }, 24 * 60 * 60 * 1000)
+
+    // Optional: Initial run on startup
+    setTimeout(() => {
+      runReengagementJob().catch(() => {})
+    }, 5000)
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection failed:', err.message)
+  })
