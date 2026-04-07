@@ -23,8 +23,8 @@ export const guestSessionMiddleware = (req, res, next) => {
     guestSessionId = crypto.randomBytes(18).toString('hex')
     res.cookie(cookieName, guestSessionId, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
+      sameSite: 'none', // Mandatory for cross-site cookies
+      secure: true,      // Mandatory when sameSite: 'none'
       maxAge: 30 * 24 * 60 * 60 * 1000
     })
   }

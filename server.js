@@ -23,7 +23,10 @@ const app = express()
 
 // ── Middleware ──
 const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173').replace(/\/$/, '')
-app.use(cors({ origin: FRONTEND_ORIGIN }))
+app.use(cors({ 
+  origin: FRONTEND_ORIGIN,
+  credentials: true 
+}))
 
 const jsonParser = express.json()
 app.use((req, res, next) => {
