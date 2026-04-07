@@ -11,7 +11,6 @@ const userSchema = new mongoose.Schema({
   verificationTokenExpiresAt: { type: Date, default: null },
   verificationEmailLastSentAt: { type: Date, default: null },
   lastActivity: { type: Date, default: Date.now },
-  lastReengagementEmailSent: { type: Date, default: null },
   isSubscribed: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 })

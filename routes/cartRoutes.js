@@ -62,8 +62,7 @@ router.post('/session', optionalAuthMiddleware, async (req, res) => {
           userEmail,
           items: cleanItems,
           expiresAt: targetExpiresAt
-        },
-        $setOnInsert: { reminderSentAt: null }
+        }
       },
       { upsert: true, returnDocument: 'after' }
     )

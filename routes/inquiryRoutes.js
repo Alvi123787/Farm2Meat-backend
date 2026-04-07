@@ -14,7 +14,6 @@ import {
   buildOrderFeedbackEmailHtml,
   buildSoldOutNotificationEmailHtml,
   buildExpiredCartRemovalEmailHtml,
-  buildCartReminderEmailHtml,
   buildAllItemsSoldNotificationEmailHtml
 } from '../utils/orderEmailTemplates.js'
 
@@ -151,11 +150,11 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       await saved.populate('butcher')
     }
 
-    // ── Record email for Re-engagement ──
+    // ── Record user activity and associate email with session ──
     const cleanEmail = normalize(email).toLowerCase()
     if (validateEmail(cleanEmail)) {
       if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-        // Logged-in user: ensure isSubscribed is active (optional, could just leave as is)
+        // Logged-in user: Update last activity
         await User.findByIdAndUpdate(userId, { lastActivity: new Date() })
         // Also update CartSession email if it's missing
         await CartSession.updateMany({ userId }, { $set: { userEmail: cleanEmail } })
@@ -409,7 +408,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       }
     }
 
-    // ── Record email for Re-engagement ──
+    // ── Record user activity and associate email with session ──
     const cleanEmail = normalize(email).toLowerCase()
     if (validateEmail(cleanEmail)) {
       const userId = String(req.user?.id || '')
@@ -629,8 +628,6 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
                     subject: `Sold Out: ${inquiry.animalName} 🏷️`,
                     html: soldOutHtml
                   })
-                  // IMPORTANT: Prevent reminder email by setting reminderSentAt
-                  await CartSession.updateOne({ _id: session._id }, { $set: { reminderSentAt: new Date() } })
                 } else if (remainingItems.length > 0) {
                   // Case 2: Multiple items, one sold
                   const soldOutHtml = buildSoldOutNotificationEmailHtml({
@@ -642,20 +639,6 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
                     subject: `Sold Out: ${inquiry.animalName} 🏷️`,
                     html: soldOutHtml
                   })
-
-                  // Also send cart reminder for remaining items
-                  const minsLeft = Math.max(1, Math.round((new Date(session.expiresAt).getTime() - Date.now()) / 60000))
-                  const reminderHtml = buildCartReminderEmailHtml({
-                    items: remainingItems,
-                    expiryMinutes: minsLeft
-                  })
-                  await sendEmail({
-                    to: email,
-                    subject: 'Cart reminder - Complete your order',
-                    html: reminderHtml
-                  })
-                  // Mark reminder as sent so job doesn't send it again
-                  await CartSession.updateOne({ _id: session._id }, { $set: { reminderSentAt: new Date() } })
                 } else {
                   // Case 3: All items sold (shouldn't happen here normally but for safety)
                   const allSoldHtml = buildAllItemsSoldNotificationEmailHtml({})
@@ -664,7 +647,6 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
                     subject: 'Items Sold Out 🏷️',
                     html: allSoldHtml
                   })
-                  await CartSession.updateOne({ _id: session._id }, { $set: { reminderSentAt: new Date() } })
                 }
               }
               // Remove the sold item from their cart

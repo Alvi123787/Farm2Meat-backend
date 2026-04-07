@@ -324,84 +324,6 @@ export const buildNewAnimalNotificationHtml = ({
  }
 
 /**
- * Re-engagement Email Template
- */
-export const buildReengagementEmailHtml = ({
-  siteName = 'Farm2Meat',
-  customerName = 'Valued Customer',
-  featuredAnimals = [], // Array of { name, price, imageUrl, id }
-  supportEmail = 'farm2meat@gmail.com',
-  supportPhone = '03089880479',
-  websiteUrl = 'http://localhost:5173',
-  /** Public base URL for uploaded images (no trailing slash). */
-  apiPublicUrl = 'http://localhost:5000'
-}) => {
-  const safeName = escapeHtml(customerName)
-  const baseWeb = String(websiteUrl || '').replace(/\/$/, '')
-  const baseApi = String(apiPublicUrl || '').replace(/\/$/, '')
-
-  const animalImageSrc = (imageUrl) => {
-    const raw = String(imageUrl || '').trim()
-    if (!raw) return ''
-    if (/^https?:\/\//i.test(raw)) return escapeHtml(raw)
-    const path = raw.startsWith('/') ? raw : `/${raw}`
-    return escapeHtml(`${baseApi}${path}`)
-  }
-
-  let animalsHtml = ''
-  if (featuredAnimals && featuredAnimals.length > 0) {
-    animalsHtml = `
-      <div style="margin-top:30px">
-        <h3 style="color:#222;font-size:18px;margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:8px">Check out our latest arrivals:</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:16px">
-          ${featuredAnimals.map(a => `
-            <div style="flex:1;min-width:200px;background:#fff;border:1px solid #eee;border-radius:12px;overflow:hidden;margin-bottom:16px">
-              ${a.imageUrl ? `<img src="${animalImageSrc(a.imageUrl)}" alt="" style="width:100%;height:150px;object-fit:cover">` : ''}
-              <div style="padding:12px">
-                <div style="font-weight:700;color:#222;font-size:15px;margin-bottom:4px">${escapeHtml(a.name)}</div>
-                <div style="color:#8B4513;font-weight:800;font-size:14px">${formatCurrency(a.price)}</div>
-                <a href="${escapeHtml(baseWeb)}/shop/${escapeHtml(String(a.id))}" style="display:inline-block;margin-top:10px;color:#8B4513;text-decoration:none;font-weight:700;font-size:13px">View Details →</a>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `
-  }
-
-  const content = `
-    <div style="padding:10px 0">
-      <p style="font-size:16px;color:#333;line-height:1.6">Hi ${safeName},</p>
-      <p style="font-size:16px;color:#333;line-height:1.6">
-        <strong>We miss you!</strong> It's been a while since we last saw you on <strong>${siteName}</strong>. 
-        New healthy animals and premium meat products are being added every day.
-      </p>
-      
-      ${animalsHtml}
-
-      <div style="text-align:center;margin:40px 0 20px">
-        <a href="${escapeHtml(baseWeb)}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 36px;border-radius:12px;font-weight:800;font-size:16px;box-shadow:0 4px 10px rgba(139,69,19,0.3)">
-          Visit Website Now
-        </a>
-      </div>
-      
-      <p style="text-align:center;color:#666;font-size:14px;margin-top:20px">
-        Don't miss out on the best livestock deals in RYK!
-      </p>
-    </div>
-  `
-
-  return baseTemplate({
-    siteName,
-    title: 'We Miss You! 👋',
-    message: 'New animals and fresh products may be available on our platform.',
-    content,
-    supportEmail,
-    supportPhone
-  })
-}
-
-/**
  * Admin: New Order Notification
  */
 export const buildAdminOrderNotificationEmailHtml = ({
@@ -502,50 +424,6 @@ export const buildSoldOutNotificationEmailHtml = ({
     siteName,
     title: 'Item Sold Out 🏷️',
     message: `The animal "${escapeHtml(animalName)}" is no longer available.`,
-    content,
-    supportEmail,
-    supportPhone
-  })
-}
-
-/**
- * Cart Reminder Email
- */
-export const buildCartReminderEmailHtml = ({
-  siteName = 'Farm2Meat',
-  items = [],
-  expiryMinutes,
-  cartUrl = 'http://localhost:5173/cart',
-  supportEmail,
-  supportPhone
-}) => {
-  const itemsRows = (items || []).map((it) => `
-    <li style="margin-bottom:8px;color:#333;font-size:15px">
-      <strong>${escapeHtml(it.name)}</strong>
-    </li>
-  `).join('')
-
-  const content = `
-    <div style="padding:10px 0">
-      <p style="font-size:16px;color:#333;line-height:1.6">You still have items waiting in your cart. Complete your purchase before the cart expires.</p>
-      <div style="background:#fefefe;border:1px solid #eee;border-radius:12px;padding:20px;margin:20px 0">
-        <h3 style="margin:0 0 12px;font-size:16px;color:#222">Items in Your Cart:</h3>
-        <ul style="margin:0;padding-left:20px">${itemsRows}</ul>
-      </div>
-      <p style="color:#8B4513;font-weight:700;background:rgba(139,69,19,0.05);padding:10px;border-radius:8px;text-align:center">
-        ⏳ Your cart will expire in ${expiryMinutes} minutes.
-      </p>
-      <div style="text-align:center;margin:30px 0">
-        <a href="${escapeHtml(cartUrl)}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 36px;border-radius:12px;font-weight:800;font-size:16px;box-shadow:0 4px 10px rgba(139,69,19,0.3)">
-          Complete Purchase
-        </a>
-      </div>
-    </div>
-  `
-  return baseTemplate({
-    siteName,
-    title: 'Your items are waiting! 🛒',
-    message: 'Don\'t miss out on your selected livestock.',
     content,
     supportEmail,
     supportPhone

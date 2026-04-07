@@ -1,43 +1,12 @@
 import express from 'express'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import Animal from '../models/Animal.js'
 import User from '../models/User.js'
 import { authMiddleware, adminMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware.js'
-import upload from '../middleware/uploadMiddleware.js'
+import upload from '../middleware/upload.js'
 import { sendEmail } from '../utils/mailer.js'
 import { buildNewAnimalNotificationHtml } from '../utils/orderEmailTemplates.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
 const router = express.Router()
-
-const backendRoot = path.join(__dirname, '..')
-
-/** Multer gives absolute paths; store paths relative to backend root for URLs/static serving */
-const toStoredMediaPath = (filePath) => {
-  if (!filePath) return ''
-  const abs = path.isAbsolute(filePath) ? filePath : path.join(backendRoot, filePath)
-  return path.relative(backendRoot, abs).replace(/\\/g, '/')
-}
-
-// ── Helper: Delete media files ──
-const deleteMediaFiles = (filePaths) => {
-  if (!Array.isArray(filePaths)) return
-  filePaths.forEach((filePath) => {
-    if (!filePath) return
-    const fullPath = path.join(__dirname, '..', filePath)
-    try {
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath)
-      }
-    } catch (err) {
-      console.error(`Error deleting file ${filePath}:`, err.message)
-    }
-  })
-}
 
 // ── Public Routes ──
 
@@ -172,8 +141,6 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     const hasUrlImages = urlImages.length > 0
 
     if (!hasUploadedImages && !hasUrlImages) {
-      const orphaned = [...(req.files?.videos || [])]
-      deleteMediaFiles(orphaned.map((f) => toStoredMediaPath(f.path)))
       return res.status(400).json({
         success: false,
         message: 'At least one image is required (upload or link)'
@@ -182,7 +149,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     
     // Handle images
     if (req.files?.images) {
-      animalData.images = req.files.images.map((file) => toStoredMediaPath(file.path))
+      animalData.images = req.files.images.map((file) => file.path)
     } else {
       animalData.images = []
     }
@@ -197,7 +164,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
 
     // Handle videos
     if (req.files?.videos) {
-      animalData.videos = req.files.videos.map((file) => toStoredMediaPath(file.path))
+      animalData.videos = req.files.videos.map((file) => file.path)
     } else {
       animalData.videos = []
     }
@@ -272,11 +239,6 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     })
   } catch (error) {
     console.error('Error creating animal:', error.message)
-    // Delete uploaded files if creation fails
-    if (req.files) {
-      const allFiles = [...(req.files.images || []), ...(req.files.videos || [])]
-      deleteMediaFiles(allFiles.map(f => f.path))
-    }
     res.status(400).json({ success: false, message: error.message || 'Error creating animal' })
   }
 })
@@ -305,7 +267,7 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     }
 
     if (req.files?.images) {
-      const newImages = req.files.images.map((file) => toStoredMediaPath(file.path))
+      const newImages = req.files.images.map((file) => file.path)
       finalImages = [...finalImages, ...newImages]
     }
 
@@ -333,7 +295,7 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     }
 
     if (req.files?.videos) {
-      const newVideos = req.files.videos.map((file) => toStoredMediaPath(file.path))
+      const newVideos = req.files.videos.map((file) => file.path)
       finalVideos = [...finalVideos, ...newVideos]
     }
 
@@ -348,24 +310,6 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     }
 
     updateData.videos = finalVideos
-
-    // Handle removals
-    if (updateData.removedImages) {
-      try {
-        const toRemove = JSON.parse(updateData.removedImages)
-        deleteMediaFiles(toRemove)
-      } catch (e) {
-        console.error('Error parsing removedImages:', e.message)
-      }
-    }
-    if (updateData.removedVideos) {
-      try {
-        const toRemove = JSON.parse(updateData.removedVideos)
-        deleteMediaFiles(toRemove)
-      } catch (e) {
-        console.error('Error parsing removedVideos:', e.message)
-      }
-    }
 
     // Clean up non-schema fields
     delete updateData.urlImages
@@ -402,11 +346,6 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     })
   } catch (error) {
     console.error('Error updating animal:', error.message)
-    // Delete new files if update fails
-    if (req.files) {
-      const allFiles = [...(req.files.images || []), ...(req.files.videos || [])]
-      deleteMediaFiles(allFiles.map(f => f.path))
-    }
     res.status(400).json({ success: false, message: error.message || 'Error updating animal' })
   }
 })
@@ -418,9 +357,6 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     if (!animal) {
       return res.status(404).json({ success: false, message: 'Animal not found' })
     }
-
-    // Delete associated media files
-    deleteMediaFiles([...(animal.images || []), ...(animal.videos || [])])
 
     await Animal.findByIdAndDelete(req.params.id)
 

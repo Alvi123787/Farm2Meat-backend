@@ -16,8 +16,7 @@ const cartSessionSchema = new mongoose.Schema(
     userId: { type: String, default: '', trim: true, index: true },
     userEmail: { type: String, default: '', trim: true },
     items: { type: [itemSchema], default: [] },
-    expiresAt: { type: Date, required: true },
-    reminderSentAt: { type: Date, default: null }
+    expiresAt: { type: Date, required: true }
   },
   { timestamps: true }
 )

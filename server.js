@@ -1,13 +1,7 @@
 import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 import animalRoutes from './routes/animalRoutes.js'
 import inquiryRoutes from './routes/inquiryRoutes.js'
@@ -19,11 +13,10 @@ import reviewRoutes from './routes/reviewRoutes.js'
 import cartRoutes from './routes/cartRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import butcherRoutes from './routes/butcherRoutes.js'
+import uploadRoutes from './routes/uploadRoutes.js'
 import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
 import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
 import { activityMiddleware } from './middleware/activityMiddleware.js'
-import { runCartReminderJob } from './jobs/cartReminderJob.js'
-import { runReengagementJob } from './jobs/reengagementJob.js'
 
 dotenv.config()
 const app = express()
@@ -48,19 +41,6 @@ app.use(guestSessionMiddleware)
 app.use(optionalAuthMiddleware)
 app.use(activityMiddleware)
 
-// ── Ensure upload directories exist ──
-const uploadDirs = ['uploads/images', 'uploads/videos', 'uploads/butchers']
-uploadDirs.forEach(dir => {
-  const fullPath = path.join(__dirname, dir)
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true })
-    console.log(`📁 Created directory: ${dir}`)
-  }
-})
-
-// ── Serve uploaded files as static ──
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-
 // ── Routes ──
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
@@ -72,6 +52,7 @@ app.use('/api/search', searchRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/butchers', butcherRoutes)
+app.use('/api/upload', uploadRoutes)
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
 app.use((err, req, res, next) => {
@@ -110,7 +91,7 @@ const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
   throw new Error("MONGO_URI is not defined");
 }
-console.log("ENV CHECK:", process.env.MONGO_URI);
+
 const PORT = process.env.PORT || 5000
 
 mongoose
@@ -120,22 +101,6 @@ mongoose
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`)
     })
-
-    console.log('⏱ Cart reminder job: every 60s (idle delay from CART_REMINDER_MINUTES, default 10)')
-    setTimeout(() => runCartReminderJob().catch(() => {}), 2000)
-    setInterval(() => {
-      runCartReminderJob().catch(() => {})
-    }, 60 * 1000)
-
-    // Run re-engagement job once every 24 hours
-    setInterval(() => {
-      runReengagementJob().catch(() => {})
-    }, 24 * 60 * 60 * 1000)
-
-    // Optional: Initial run on startup
-    setTimeout(() => {
-      runReengagementJob().catch(() => {})
-    }, 5000)
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message)
