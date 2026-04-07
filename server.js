@@ -22,7 +22,7 @@ dotenv.config()
 const app = express()
 
 // ── Middleware ──
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173').replace(/\/$/, '')
 app.use(cors({ origin: FRONTEND_ORIGIN }))
 
 const jsonParser = express.json()
@@ -53,6 +53,11 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/butchers', butcherRoutes)
 app.use('/api/upload', uploadRoutes)
+
+// ── Root Route ──
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Farm2Meat API is running 🚀' })
+})
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
 app.use((err, req, res, next) => {
@@ -98,10 +103,14 @@ mongoose
   .connect(MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected successfully')
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`)
-    })
+    if (process.env.NODE_ENV !== 'production') {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`)
+      })
+    }
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message)
   })
+
+export default app
