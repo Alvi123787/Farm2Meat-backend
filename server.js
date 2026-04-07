@@ -22,24 +22,9 @@ dotenv.config()
 const app = express()
 
 // ── Middleware ──
-const rawOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
-const allowedOrigins = rawOrigin.split(',').map(o => o.trim().replace(/\/$/, ''))
-
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173').replace(/\/$/, '')
 app.use(cors({ 
-  origin: (origin, callback) => {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true)
-    
-    const isAllowed = allowedOrigins.includes(origin) || allowedOrigins.includes('*')
-    
-    if (isAllowed) {
-      // Must return the specific origin (not '*') for credentials: true
-      callback(null, true)
-    } else {
-      console.warn(`CORS blocked for origin: ${origin}`)
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
+  origin: FRONTEND_ORIGIN,
   credentials: true 
 }))
 
