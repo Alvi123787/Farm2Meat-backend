@@ -22,7 +22,7 @@ dotenv.config()
 const app = express()
 
 // ── Middleware ──
-const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173').replace(/\/$/, '')
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173' || 'https://farm2meat.netlify.app/').replace(/\/$/, '')
 app.use(cors({ 
   origin: FRONTEND_ORIGIN,
   credentials: true 
