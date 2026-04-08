@@ -1,5 +1,4 @@
 import express from 'express'
-import mongoose from 'mongoose'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
@@ -17,6 +16,7 @@ import uploadRoutes from './routes/uploadRoutes.js'
 import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
 import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
 import { activityMiddleware } from './middleware/activityMiddleware.js'
+import { dbMiddleware } from './middleware/dbMiddleware.js'
 
 dotenv.config()
 const app = express()
@@ -40,6 +40,13 @@ app.use((req, res, next) => {
   })
 })
 app.use(express.urlencoded({ extended: true }))
+
+// ── Root Route (Health Check) ──
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Farm2Meat API is running 🚀' })
+})
+
+app.use(dbMiddleware) // Ensure DB is connected before any middleware that uses it
 app.use(guestSessionMiddleware)
 app.use(optionalAuthMiddleware)
 app.use(activityMiddleware)
@@ -56,11 +63,6 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/butchers', butcherRoutes)
 app.use('/api/upload', uploadRoutes)
-
-// ── Root Route ──
-app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Farm2Meat API is running 🚀' })
-})
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
 app.use((err, req, res, next) => {
@@ -93,27 +95,17 @@ app.use((err, req, res, next) => {
   return res.status(status >= 400 && status < 600 ? status : 400).json({ success: false, message })
 })
 
-// ── MongoDB Connection ──
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  throw new Error("MONGO_URI is not defined");
-}
-
+// ── Server Start (Development Only) ──
 const PORT = process.env.PORT || 5000
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log('✅ MongoDB connected successfully')
-    if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production') {
+  import('./utils/db.js').then(({ default: connectDB }) => {
+    connectDB().then(() => {
       app.listen(PORT, () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`)
       })
-    }
+    })
   })
-  .catch((err) => {
-    console.error('❌ MongoDB connection failed:', err.message)
-  })
+}
 
 export default app
