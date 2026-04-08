@@ -22,13 +22,16 @@ dotenv.config()
 const app = express()
 
 // ── Middleware ──
-const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173' || 'https://farm2meat.netlify.app').replace(/\/$/, '')
+const allowedOrigins = process.env.FRONTEND_ORIGIN 
+  ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
+  : ['http://localhost:5173', 'https://farm2meat.netlify.app']
+
 app.use(cors({ 
-  origin: FRONTEND_ORIGIN,
+  origin: allowedOrigins,
   credentials: true 
 }))
 
-const jsonParser = express.json()
+const jsonParser = express.json({ limit: '50mb' })
 app.use((req, res, next) => {
   jsonParser(req, res, (err) => {
     if (!err) return next()
@@ -39,7 +42,7 @@ app.use((req, res, next) => {
     return next(err)
   })
 })
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // ── Root Route (Health Check) ──
 app.get('/', (req, res) => {

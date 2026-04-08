@@ -17,6 +17,9 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null }
 }
 
+// Disable Mongoose buffering globally
+mongoose.set('bufferCommands', false)
+
 async function connectDB() {
   if (cached.conn) {
     return cached.conn
