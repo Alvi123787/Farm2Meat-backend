@@ -19,15 +19,39 @@ import { activityMiddleware } from './middleware/activityMiddleware.js'
 import { dbMiddleware } from './middleware/dbMiddleware.js'
 
 dotenv.config()
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined.')
+  process.exit(1)
+}
+
 const app = express()
 
 // ── Middleware ──
-const allowedOrigins = process.env.FRONTEND_ORIGIN 
-  ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
-  : ['http://localhost:5173', 'https://farm2meat.netlify.app']
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'https://farm2meat.netlify.app', 
+  'https://your-site.netlify.app'
+]
+
+// Add custom origins from env
+if (process.env.FRONTEND_ORIGIN) {
+  process.env.FRONTEND_ORIGIN.split(',').forEach(o => {
+    const origin = o.trim().replace(/\/$/, '')
+    if (origin && !allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin)
+    }
+  })
+}
 
 app.use(cors({ 
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true)
+    } else {
+      callback(new Error(`Not allowed by CORS: ${origin}`))
+    }
+  },
   credentials: true 
 }))
 
