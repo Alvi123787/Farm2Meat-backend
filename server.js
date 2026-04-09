@@ -28,30 +28,12 @@ if (!process.env.JWT_SECRET) {
 const app = express()
 
 // ── Middleware ──
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'https://farm2meat.netlify.app', 
-  'https://your-site.netlify.app'
-]
-
-// Add custom origins from env
-if (process.env.FRONTEND_ORIGIN) {
-  process.env.FRONTEND_ORIGIN.split(',').forEach(o => {
-    const origin = o.trim().replace(/\/$/, '')
-    if (origin && !allowedOrigins.includes(origin)) {
-      allowedOrigins.push(origin)
-    }
-  })
-}
+const allowedOrigins = process.env.FRONTEND_ORIGIN 
+  ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
+  : ['http://localhost:5173', 'https://farm2meat.netlify.app']
 
 app.use(cors({ 
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true)
-    } else {
-      callback(new Error(`Not allowed by CORS: ${origin}`))
-    }
-  },
+  origin: allowedOrigins,
   credentials: true 
 }))
 

@@ -6,7 +6,6 @@ import crypto from 'crypto'
 import validator from 'validator'
 import { sendEmail } from '../utils/mailer.js'
 import User from '../models/User.js'
-import { noCacheMiddleware } from '../middleware/noCacheMiddleware.js'
 import {
   buildWelcomeVerificationEmailHtml,
   buildAdminUserRegistrationNotificationEmailHtml,
@@ -77,7 +76,7 @@ const sendVerificationEmail = async (email, verificationToken) => {
  * Register: creates unverified user and sends email link (24h).
  * If email exists but unverified, refreshes password + token and resends.
  */
-router.post('/signup', noCacheMiddleware, async (req, res) => {
+router.post('/signup', async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email)
     const password = String(req.body?.password || '')
@@ -203,7 +202,7 @@ router.post('/signup', noCacheMiddleware, async (req, res) => {
   }
 })
 
-router.post('/login', noCacheMiddleware, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase()
     const password = String(req.body?.password || '')
@@ -269,7 +268,7 @@ router.get('/me', async (req, res) => {
   }
 })
 
-router.post('/forgot-password', noCacheMiddleware, async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase()
     const genericMessage = 'If this email exists, a reset link has been sent.'
@@ -325,7 +324,7 @@ router.post('/forgot-password', noCacheMiddleware, async (req, res) => {
   }
 })
 
-router.post('/reset-password/:token', noCacheMiddleware, async (req, res) => {
+router.post('/reset-password/:token', async (req, res) => {
   try {
     const token = String(req.params?.token || '')
     const password = String(req.body?.password || '')
