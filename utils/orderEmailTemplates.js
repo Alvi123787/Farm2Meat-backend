@@ -1,7 +1,11 @@
 const formatCurrency = (value) => {
   const n = Number(value || 0)
   const safe = Number.isFinite(n) ? n : 0
-  return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(safe)
+  const formatted = new Intl.NumberFormat('en-PK', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(safe)
+  return `Rs. ${formatted}`
 }
 
 const escapeHtml = (s) =>
