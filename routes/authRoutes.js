@@ -207,16 +207,25 @@ router.post('/login', async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase()
     const password = String(req.body?.password || '')
 
-    if (!isValidEmailFormat(email)) return res.status(400).json({ success: false, message: 'Invalid email format' })
+    if (!isValidEmailFormat(email)) {
+      return res.status(400).json({ success: false, message: "This email doesn't exist." })
+    }
     if (!password) return res.status(400).json({ success: false, message: 'Password is required' })
 
-    if (email === getAdminEmail().toLowerCase() && password === getAdminPassword()) {
-      const token = buildToken({ sub: 'built-in-admin', email: getAdminEmail(), role: 'admin' })
-      return res.json({ success: true, token, role: 'admin' })
+    const isAdminEmail = email === getAdminEmail().toLowerCase()
+    if (isAdminEmail) {
+      if (password === getAdminPassword()) {
+        const token = buildToken({ sub: 'built-in-admin', email: getAdminEmail(), role: 'admin' })
+        return res.json({ success: true, token, role: 'admin' })
+      }
+      // If password was wrong for the admin email
+      return res.status(401).json({ success: false, message: 'Incorrect password for admin.' })
     }
 
     const user = await User.findOne({ email })
-    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' })
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'This email is not registered.' })
+    }
 
     if (!user.isVerified) {
       return res.status(403).json({
@@ -227,7 +236,9 @@ router.post('/login', async (req, res) => {
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash)
-    if (!ok) return res.status(401).json({ success: false, message: 'Invalid credentials' })
+    if (!ok) {
+      return res.status(401).json({ success: false, message: 'Incorrect password.' })
+    }
 
     const token = buildToken({ sub: String(user._id), email: user.email, role: user.role })
 
