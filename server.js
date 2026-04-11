@@ -37,7 +37,7 @@ app.use(cors({
   credentials: true 
 }))
 
-const jsonParser = express.json({ limit: '50mb' })
+const jsonParser = express.json({ limit: '100mb' })
 app.use((req, res, next) => {
   jsonParser(req, res, (err) => {
     if (!err) return next()
@@ -48,7 +48,7 @@ app.use((req, res, next) => {
     return next(err)
   })
 })
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '100mb' }))
 
 // ── Root Route (Health Check) ──
 app.get('/', (req, res) => {
@@ -91,7 +91,7 @@ app.use((err, req, res, next) => {
   }
 
   if (code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ success: false, message: 'File too large (max 50MB per file)' })
+    return res.status(400).json({ success: false, message: 'File too large (max 100MB per file)' })
   }
   const status =
     typeof err.statusCode === 'number'
