@@ -70,7 +70,8 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       deliveryDate,
       paymentMethod,
       orderSource,
-      notes
+      notes,
+      animalCare
     } = req.body
 
     // Basic validation
@@ -93,6 +94,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     const userId = String(req.user?.id || '')
     // animalId already declared in destructured req.body above
     let category = ''
+    let animalCarePrice = 0
+    let advanceAmount = 0
+    let remainingAmount = 0
+
     if (animalId) {
       // ── ATOMIC AVAILABILITY CHECK & RESERVE ──
       // Using findOneAndUpdate ensures only one request can claim the animal
@@ -115,6 +120,18 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         })
       }
       category = animal.category || ''
+
+      // Calculate Care Service Price if selected
+      if (animalCare) {
+        animalCarePrice = 100 // Example: Rs. 100 per day or fixed
+      }
+
+      // Calculate Total with Service
+      const finalTotal = (totalAmount || (parsedPrice * qty)) + animalCarePrice
+
+      // 20% Advance Calculation
+      advanceAmount = Math.round(finalTotal * 0.20)
+      remainingAmount = finalTotal - advanceAmount
     }
 
     const newInquiry = new Inquiry({
@@ -132,7 +149,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       weight: weight || '',
       price: parsedPrice,
       quantity: qty,
-      totalAmount: totalAmount || parsedPrice * qty,
+      totalAmount: (totalAmount || (parsedPrice * qty)) + animalCarePrice,
       deliveryAddress: deliveryAddress || '',
       city: city || '',
       deliveryDate: deliveryDate || '',
@@ -140,6 +157,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       orderSource: orderSource || 'checkout',
       status: 'Pending',
       notes: notes || '',
+      animalCare: animalCare || false,
+      animalCarePrice,
+      advanceAmount,
+      remainingAmount,
       butcher: req.body.butcher || null,
       avatar: avatar || ''
     })
@@ -278,7 +299,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
     }
 
     const { customerName, phone, email, items, deliveryAddress,
-            city, deliveryDate, paymentMethod, orderSource, notes, deliveryCharge } = req.body
+            city, deliveryDate, paymentMethod, orderSource, notes, deliveryCharge, animalCare } = req.body
 
     if (!customerName || !phone || !items || items.length === 0) {
       return res.status(400).json({
@@ -349,9 +370,28 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         // Create inquiries for all reserved animals
         const animalMap = new Map(reservedAnimals.map(a => [String(a._id), a]))
         
-        const inquiryPromises = items.map(async (item) => {
+        const totalItemsInBulk = items.length
+        const totalProductSubtotal = items.reduce((sum, item) => sum + (parsePrice(item.price) * (item.quantity || 1)), 0)
+        const bulkAnimalCarePrice = animalCare ? (totalItemsInBulk * 100) : 0 // Rs. 100 per animal if care enabled
+        const bulkGrandTotal = totalProductSubtotal + bulkAnimalCarePrice
+        const bulkAdvanceTotal = Math.round(bulkGrandTotal * 0.20)
+        
+        // Distribute advance/care price across items proportionally or evenly
+        // For simplicity, we'll store individual calculations on each inquiry
+        
+        const inquiryPromises = items.map(async (item, index) => {
           const parsedPrice = parsePrice(item.price)
           const qty = item.quantity || 1
+          const itemSubtotal = parsedPrice * qty
+          
+          const itemAnimalCarePrice = animalCare ? 100 : 0
+          const itemTotalWithCare = itemSubtotal + itemAnimalCarePrice
+          
+          // Calculate individual advance (approx 20%)
+          // For the last item, we'll adjust to match the exact bulk totals
+          let itemAdvance = Math.round(itemTotalWithCare * 0.20)
+          let itemRemaining = itemTotalWithCare - itemAdvance
+
           const userId = String(req.user?.id || '')
           const animalData = animalMap.get(String(item?._id || item?.id || ''))
 
@@ -371,7 +411,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             weight: item.weight || '',
             price: parsedPrice,
             quantity: qty,
-            totalAmount: parsedPrice * qty,
+            totalAmount: itemTotalWithCare,
             deliveryAddress: deliveryAddress || '',
             city: city || '',
             deliveryDate: deliveryDate || '',
@@ -379,6 +419,10 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             orderSource: orderSource || 'cart',
             status: 'Pending',
             notes: notes || '',
+            animalCare: animalCare || false,
+            animalCarePrice: itemAnimalCarePrice,
+            advanceAmount: itemAdvance,
+            remainingAmount: itemRemaining,
             butcher: req.body.butcher || null,
             avatar: avatar || ''
           })

@@ -29,9 +29,8 @@ const animalSchema = new mongoose.Schema({
     default: 'male'
   },
   age: {
-    type: String,
-    required: [true, 'Age is required'],
-    trim: true
+    type: Number,
+    required: [true, 'Age is required']
   },
   ageUnit: {
     type: String,
@@ -89,10 +88,6 @@ const animalSchema = new mongoose.Schema({
     type: String,
     enum: ['excellent', 'good', 'average'],
     default: 'good'
-  },
-  vaccinated: {
-    type: Boolean,
-    default: false
   },
   farmLocation: {
     type: String,

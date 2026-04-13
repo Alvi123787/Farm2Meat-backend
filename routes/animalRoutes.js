@@ -5,8 +5,31 @@ import { authMiddleware, adminMiddleware, optionalAuthMiddleware } from '../midd
 import upload from '../middleware/upload.js'
 import { sendEmail } from '../utils/mailer.js'
 import { buildNewAnimalNotificationHtml } from '../utils/orderEmailTemplates.js'
+import cloudinary from '../config/cloudinary.js'
+import sanitizeHtml from 'sanitize-html'
 
 const router = express.Router()
+
+// ── Helper: Upload Buffer to Cloudinary ──
+const uploadToCloudinary = (fileBuffer, resourceType = 'auto', folder = 'animals') => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: resourceType,
+        folder: folder,
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          reject(error);
+        } else {
+          resolve(result.secure_url);
+        }
+      }
+    );
+    uploadStream.end(fileBuffer);
+  });
+};
 
 // ── Public Routes ──
 
@@ -122,7 +145,7 @@ router.get('/:id', optionalAuthMiddleware, async (req, res) => {
 // POST /api/animals - Create new animal
 router.post('/', authMiddleware, adminMiddleware, upload.fields([
   { name: 'images', maxCount: 10 },
-  { name: 'videos', maxCount: 3 }
+  { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const animalData = { ...req.body }
@@ -147,36 +170,42 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
       })
     }
     
-    // Handle images
+    // Handle images upload to Cloudinary
+    let uploadedImages = []
     if (req.files?.images) {
-      animalData.images = req.files.images.map((file) => file.path)
-    } else {
-      animalData.images = []
+      const uploadPromises = req.files.images.map(file => 
+        uploadToCloudinary(file.buffer, 'image', 'animals/images')
+      )
+      uploadedImages = await Promise.all(uploadPromises)
     }
-
-    // Add URL images
-    if (hasUrlImages) {
-      animalData.images = [...animalData.images, ...urlImages]
-    }
+    animalData.images = [...uploadedImages, ...urlImages]
 
     // Backward compatibility single image field
     animalData.imageUrl = animalData.images[0] || ''
 
-    // Handle videos
-    if (req.files?.videos) {
-      animalData.videos = req.files.videos.map((file) => file.path)
-    } else {
-      animalData.videos = []
+    // Handle video upload to Cloudinary
+    let uploadedVideos = []
+    if (req.files?.video) {
+      const uploadPromises = req.files.video.map(file => 
+        uploadToCloudinary(file.buffer, 'video', 'animals/videos')
+      )
+      uploadedVideos = await Promise.all(uploadPromises)
     }
-
-    // Add URL videos
-    if (urlVideos.length > 0) {
-      animalData.videos = [...animalData.videos, ...urlVideos]
-    }
+    animalData.videos = [...uploadedVideos, ...urlVideos]
 
     // Clean up non-schema fields
     delete animalData.urlImages
     delete animalData.urlVideos
+
+    // Rich Description Sanitization
+    if (animalData.fullDescription) {
+      animalData.fullDescription = sanitizeHtml(animalData.fullDescription, {
+        allowedTags: ['br', 'ul', 'ol', 'li', 'strong', 'em', 'h1', 'h2', 'h3', 'p', 'span'],
+        allowedAttributes: {
+          '*': ['style', 'class']
+        }
+      })
+    }
 
     // Data cleaning
     if (animalData.teeth !== undefined) {
@@ -186,7 +215,10 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
         animalData.teeth = parseInt(animalData.teeth)
       }
     }
-    if (animalData.vaccinated !== undefined) animalData.vaccinated = String(animalData.vaccinated) === 'true'
+    
+    // Age and Unit
+    if (animalData.age) animalData.age = parseInt(animalData.age)
+    
     if (animalData.visibility !== undefined) animalData.visibility = String(animalData.visibility) === 'true'
     if (animalData.deliveryAvailable !== undefined) animalData.deliveryAvailable = String(animalData.deliveryAvailable) === 'true'
     if (animalData.negotiable !== undefined) animalData.negotiable = String(animalData.negotiable) === 'true'
@@ -198,44 +230,27 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
 
     // ── New Animal Notification ──
     if (animal.visibility !== false) {
-      (async () => {
-        try {
-          const users = await User.find({ isSubscribed: true, isVerified: true }).select('email').lean()
-          const emails = users.map(u => u.email).filter(Boolean)
-          
-          if (emails.length > 0) {
-            const html = buildNewAnimalNotificationHtml({
-              animalName: animal.name,
-              animalPrice: animal.price,
-              animalDescription: animal.shortDescription || animal.fullDescription || '',
-              animalImageUrl: animal.imageUrl,
-              animalUrl: `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/shop/${animal._id}`
-            })
+      try {
+        const admins = await User.find({ role: 'admin' }).select('email').lean()
+        const adminEmails = admins.map(a => a.email).filter(e => e)
 
-            // Send to all users using Promise.all for better performance
-            await Promise.all(
-              emails.map((email) =>
-                sendEmail({
-                  to: email,
-                  subject: `New Arrival: ${animal.name} 🐐`,
-                  html
-                }).catch((err) =>
-                  console.error(`Failed to send new animal notification to ${email}:`, err.message)
-                )
-              )
-            )
-          }
-        } catch (err) {
-          console.error('Error sending new animal notifications:', err.message)
+        if (adminEmails.length > 0) {
+          const emailHtml = buildNewAnimalNotificationHtml(animal)
+          await sendEmail({
+            to: adminEmails,
+            subject: `New Animal Added: ${animal.name} (${animal.category})`,
+            html: emailHtml
+          })
         }
-      })()
+      } catch (err) {
+        console.error('Failed to send admin notification email:', err.message)
+      }
     }
 
-    const payload = animal.toObject ? animal.toObject() : animal
     res.status(201).json({
       success: true,
-      message: 'Animal added successfully',
-      data: payload
+      message: 'Animal created successfully',
+      data: animal
     })
   } catch (error) {
     console.error('Error creating animal:', error.message)
@@ -246,7 +261,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
 // PUT /api/animals/:id - Update animal
 router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
   { name: 'images', maxCount: 10 },
-  { name: 'videos', maxCount: 3 }
+  { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const animal = await Animal.findById(req.params.id)
@@ -266,9 +281,13 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
       }
     }
 
+    // Upload new images to Cloudinary
     if (req.files?.images) {
-      const newImages = req.files.images.map((file) => file.path)
-      finalImages = [...finalImages, ...newImages]
+      const uploadPromises = req.files.images.map(file => 
+        uploadToCloudinary(file.buffer, 'image', 'animals/images')
+      )
+      const newUploadedImages = await Promise.all(uploadPromises)
+      finalImages = [...finalImages, ...newUploadedImages]
     }
 
     // Handle URL images
@@ -294,9 +313,13 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
       }
     }
 
-    if (req.files?.videos) {
-      const newVideos = req.files.videos.map((file) => file.path)
-      finalVideos = [...finalVideos, ...newVideos]
+    // Upload new video to Cloudinary
+    if (req.files?.video) {
+      const uploadPromises = req.files.video.map(file => 
+        uploadToCloudinary(file.buffer, 'video', 'animals/videos')
+      )
+      const newUploadedVideos = await Promise.all(uploadPromises)
+      finalVideos = [...finalVideos, ...newUploadedVideos]
     }
 
     // Handle URL videos
@@ -319,6 +342,16 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     delete updateData.removedImages
     delete updateData.removedVideos
 
+    // Rich Description Sanitization
+    if (updateData.fullDescription) {
+      updateData.fullDescription = sanitizeHtml(updateData.fullDescription, {
+        allowedTags: ['br', 'ul', 'ol', 'li', 'strong', 'em', 'h1', 'h2', 'h3', 'p', 'span'],
+        allowedAttributes: {
+          '*': ['style', 'class']
+        }
+      })
+    }
+
     // Data cleaning
     if (updateData.teeth !== undefined) {
       if (updateData.teeth === '' || updateData.teeth === null) {
@@ -327,7 +360,10 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
         updateData.teeth = parseInt(updateData.teeth)
       }
     }
-    if (updateData.vaccinated !== undefined) updateData.vaccinated = String(updateData.vaccinated) === 'true'
+    
+    // Age and Unit
+    if (updateData.age) updateData.age = parseInt(updateData.age)
+
     if (updateData.visibility !== undefined) updateData.visibility = String(updateData.visibility) === 'true'
     if (updateData.deliveryAvailable !== undefined) updateData.deliveryAvailable = String(updateData.deliveryAvailable) === 'true'
     if (updateData.negotiable !== undefined) updateData.negotiable = String(updateData.negotiable) === 'true'
@@ -338,11 +374,10 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
       { new: true, runValidators: true }
     )
 
-    const payload = updatedAnimal?.toObject ? updatedAnimal.toObject() : updatedAnimal
     res.json({
       success: true,
       message: 'Animal updated successfully',
-      data: payload
+      data: updatedAnimal
     })
   } catch (error) {
     console.error('Error updating animal:', error.message)

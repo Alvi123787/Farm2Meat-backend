@@ -113,6 +113,22 @@ const inquirySchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  animalCare: {
+    type: Boolean,
+    default: false
+  },
+  animalCarePrice: {
+    type: Number,
+    default: 0
+  },
+  advanceAmount: {
+    type: Number,
+    default: 0
+  },
+  remainingAmount: {
+    type: Number,
+    default: 0
+  },
   butcher: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Butcher',
