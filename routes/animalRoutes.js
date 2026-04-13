@@ -144,7 +144,7 @@ router.get('/:id', optionalAuthMiddleware, async (req, res) => {
 
 // POST /api/animals - Create new animal
 router.post('/', authMiddleware, adminMiddleware, upload.fields([
-  { name: 'images', maxCount: 10 },
+  { name: 'images', maxCount: 8 },
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
@@ -260,7 +260,7 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
 
 // PUT /api/animals/:id - Update animal
 router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
-  { name: 'images', maxCount: 10 },
+  { name: 'images', maxCount: 8 },
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {

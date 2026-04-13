@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import slugify from 'slugify'
 
 const animalSchema = new mongoose.Schema({
 
@@ -45,18 +46,44 @@ const animalSchema = new mongoose.Schema({
 
   // ── Pricing & Status ──
   purchasePrice: {
-    type: String,
-    default: '',
-    trim: true
+    type: Number,
+    default: 0
   },
   price: {
-    type: String,
-    required: [true, 'Price is required'],
-    trim: true
+    type: Number,
+    required: [true, 'Price is required']
   },
   discountPrice: {
+    type: Number,
+    default: 0
+  },
+  // ── Meat Integration ──
+  isForMeat: {
+    type: Boolean,
+    default: false
+  },
+  slaughterWeight: {
+    type: Number,
+    default: 0
+  },
+  meatYieldEstimate: {
     type: String,
     default: '',
+    trim: true
+  },
+  // ── SEO ──
+  slug: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  seoTitle: {
+    type: String,
+    trim: true
+  },
+  seoDescription: {
+    type: String,
     trim: true
   },
   listingType: {
@@ -164,6 +191,16 @@ const animalSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+})
+
+// ── Middlewares ──
+
+// Auto-generate slug before save
+animalSchema.pre('save', function (next) {
+  if (this.isModified('name')) {
+    this.slug = slugify(this.name, { lower: true, strict: true })
+  }
+  next()
 })
 
 export default mongoose.model('Animal', animalSchema)
