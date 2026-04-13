@@ -196,11 +196,10 @@ const animalSchema = new mongoose.Schema({
 // ── Middlewares ──
 
 // Auto-generate slug before save
-animalSchema.pre('save', function (next) {
+animalSchema.pre('save', function () {
   if (this.isModified('name')) {
     this.slug = slugify(this.name, { lower: true, strict: true })
   }
-  next()
 })
 
 export default mongoose.model('Animal', animalSchema)
