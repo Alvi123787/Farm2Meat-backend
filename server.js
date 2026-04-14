@@ -28,10 +28,9 @@ if (!process.env.JWT_SECRET) {
 const app = express()
 
 // ── Middleware ──
-const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://farm2meat.netlify.app']
 const allowedOrigins = process.env.FRONTEND_ORIGIN 
-  ? [...new Set([...process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')), ...defaultOrigins])]
-  : defaultOrigins
+  ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
+  : ['http://localhost:5173', 'https://farm2meat.netlify.app']
 
 app.use(cors({ 
   origin: allowedOrigins,
