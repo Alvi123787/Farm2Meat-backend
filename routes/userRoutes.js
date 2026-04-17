@@ -2,7 +2,7 @@ import express from 'express'
 import User from '../models/User.js'
 import { authMiddleware, adminMiddleware } from '../middleware/authMiddleware.js'
 import { sendEmail } from '../utils/mailer.js'
-import { buildPromotionalEmailHtml } from '../utils/orderEmailTemplates.js'
+import { buildPromotionalEmailHtml, buildAdminCustomEmailHtml } from '../utils/orderEmailTemplates.js'
 
 const router = express.Router()
 
@@ -136,6 +136,60 @@ router.post('/promote', authMiddleware, adminMiddleware, async (req, res) => {
   } catch (error) {
     console.error('POST /api/users/promote:', error.message)
     res.status(500).json({ success: false, message: 'Failed to send promotional emails' })
+  }
+})
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/users/send-email — Admin: Send custom email to all or selected users
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post('/send-email', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { subject, message, sendToAll, selectedUsers } = req.body
+
+    if (!subject || !message) {
+      return res.status(400).json({ success: false, message: 'Subject and message are required' })
+    }
+
+    let recipientEmails = []
+
+    if (sendToAll) {
+      const users = await User.find({ isVerified: true }).select('email').lean()
+      recipientEmails = users.map(u => u.email).filter(Boolean)
+    } else {
+      if (!selectedUsers || !Array.isArray(selectedUsers) || selectedUsers.length === 0) {
+        return res.status(400).json({ success: false, message: 'At least one user must be selected' })
+      }
+      recipientEmails = selectedUsers
+    }
+
+    if (recipientEmails.length === 0) {
+      return res.status(404).json({ success: false, message: 'No recipients found' })
+    }
+
+    const html = buildAdminCustomEmailHtml({
+      title: subject,
+      message: message
+    })
+
+    // Async send (background)
+    (async () => {
+      for (const email of recipientEmails) {
+        await sendEmail({
+          to: email,
+          subject: `${subject} - Farm2Meat`,
+          html
+        }).catch(err => console.error(`Failed to send custom email to ${email}:`, err.message))
+      }
+    })()
+
+    res.json({
+      success: true,
+      message: `Emails are being sent to ${recipientEmails.length} recipients.`,
+      count: recipientEmails.length
+    })
+  } catch (error) {
+    console.error('POST /api/users/send-email:', error.message)
+    res.status(500).json({ success: false, message: 'Failed to send emails' })
   }
 })
 

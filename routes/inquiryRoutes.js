@@ -14,7 +14,8 @@ import {
   buildOrderFeedbackEmailHtml,
   buildSoldOutNotificationEmailHtml,
   buildExpiredCartRemovalEmailHtml,
-  buildAllItemsSoldNotificationEmailHtml
+  buildAllItemsSoldNotificationEmailHtml,
+  buildOrderStatusEmailHtml
 } from '../utils/orderEmailTemplates.js'
 
 const router = express.Router()
@@ -617,7 +618,7 @@ router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
 router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { status } = req.body
-    const validStatuses = ['Pending', 'Contacted', 'Completed', 'Cancelled']
+    const validStatuses = ['Pending', 'Contacted', 'Completed', 'Cancelled', 'Shipped', 'Delivered']
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -637,6 +638,24 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
         success: false,
         message: 'Inquiry not found'
       })
+    }
+
+    // ── Send Order Status Update Email ──
+    if (['Shipped', 'Delivered'].includes(status) && validateEmail(inquiry.email)) {
+      try {
+        const statusHtml = buildOrderStatusEmailHtml({
+          orderId: inquiry.inquiryId,
+          status,
+          customerName: inquiry.customerName
+        })
+        await sendEmail({
+          to: inquiry.email,
+          subject: `Order Status Update: ${status} (${inquiry.inquiryId})`,
+          html: statusHtml
+        })
+      } catch (err) {
+        console.error(`Failed to send ${status} email:`, err.message)
+      }
     }
 
     if (status === 'Completed') {

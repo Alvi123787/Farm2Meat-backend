@@ -231,19 +231,51 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     // ── New Animal Notification ──
     if (animal.visibility !== false) {
       try {
+        // Notify Admins
         const admins = await User.find({ role: 'admin' }).select('email').lean()
         const adminEmails = admins.map(a => a.email).filter(e => e)
 
         if (adminEmails.length > 0) {
-          const emailHtml = buildNewAnimalNotificationHtml(animal)
+          const adminEmailHtml = buildNewAnimalNotificationHtml({
+            animalName: animal.name,
+            animalPrice: animal.price,
+            animalDescription: animal.description || animal.breed,
+            animalImageUrl: animal.imageUrl,
+            animalUrl: `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/shop/${animal._id}`
+          })
           await sendEmail({
             to: adminEmails,
             subject: `New Animal Added: ${animal.name} (${animal.category})`,
-            html: emailHtml
+            html: adminEmailHtml
+          }).catch(err => console.error('Failed to send admin notification email:', err.message))
+        }
+
+        // Notify Subscribed Users
+        const subscribedUsers = await User.find({ isSubscribed: true, isVerified: true }).select('email').lean()
+        const userEmails = subscribedUsers.map(u => u.email).filter(e => e)
+
+        if (userEmails.length > 0) {
+          const userEmailHtml = buildNewAnimalNotificationHtml({
+            animalName: animal.name,
+            animalPrice: animal.price,
+            animalDescription: animal.description || animal.breed,
+            animalImageUrl: animal.imageUrl,
+            animalUrl: `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/shop/${animal._id}`
           })
+          
+          // Send in background/batches if needed, but for now simple loop
+          (async () => {
+            for (const email of userEmails) {
+              await sendEmail({
+                to: email,
+                subject: `New Livestock Alert: ${animal.name} 🐐`,
+                html: userEmailHtml
+              }).catch(err => console.error(`Failed to send user notification to ${email}:`, err.message))
+            }
+          })()
         }
       } catch (err) {
-        console.error('Failed to send admin notification email:', err.message)
+        console.error('Failed to handle animal notification emails:', err.message)
       }
     }
 

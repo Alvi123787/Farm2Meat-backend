@@ -105,7 +105,7 @@ const inquirySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Contacted', 'Completed', 'Cancelled', 'Delivered'],
+    enum: ['Pending', 'Contacted', 'Completed', 'Cancelled', 'Delivered', 'Shipped'],
     default: 'Pending'
   },
   notes: {

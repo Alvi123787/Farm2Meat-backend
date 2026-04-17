@@ -463,6 +463,31 @@ export const buildAllItemsSoldNotificationEmailHtml = ({
 }
 
 /**
+ * Admin: Custom Message Template
+ */
+export const buildAdminCustomEmailHtml = ({
+  siteName = 'Farm2Meat',
+  title,
+  message,
+  supportEmail = 'farm2meat@gmail.com',
+  supportPhone = '03089880479'
+}) => {
+  const content = `
+    <div style="padding:10px 0;line-height:1.6;color:#333;font-size:16px">
+      ${message.replace(/\n/g, '<br>')}
+    </div>
+  `
+  return baseTemplate({
+    siteName,
+    title: escapeHtml(title),
+    message: 'Important update from Farm2Meat',
+    content,
+    supportEmail,
+    supportPhone
+  })
+}
+
+/**
  * Promotional / Marketing Email
  */
 export const buildPromotionalEmailHtml = ({
