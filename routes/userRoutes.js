@@ -143,57 +143,100 @@ router.post('/promote', authMiddleware, adminMiddleware, async (req, res) => {
 // POST /api/users/send-email — Admin: Send custom email to all or selected users
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.post('/send-email', authMiddleware, adminMiddleware, async (req, res) => {
+  console.log('[EmailRoute] Request received:', { 
+    subject: req.body?.subject, 
+    sendToAll: req.body?.sendToAll,
+    selectedCount: req.body?.selectedUsers?.length 
+  });
+
   try {
     const { subject, message, sendToAll, selectedUsers } = req.body
 
     if (!subject || !message) {
+      console.log('[EmailRoute] Validation failed: Missing subject or message');
       return res.status(400).json({ success: false, message: 'Subject and message are required' })
     }
 
     let recipientEmails = []
 
-    if (sendToAll) {
-      const users = await User.find({ isVerified: true }).select('email').lean()
-      recipientEmails = users.map(u => u.email).filter(Boolean)
-    } else {
-      if (!selectedUsers || !Array.isArray(selectedUsers) || selectedUsers.length === 0) {
-        return res.status(400).json({ success: false, message: 'At least one user must be selected' })
+    try {
+      if (sendToAll) {
+        console.log('[EmailRoute] Fetching all verified users...');
+        const users = await User.find({ isVerified: true }).select('email').lean()
+        recipientEmails = users.map(u => u.email).filter(Boolean)
+        console.log(`[EmailRoute] Found ${recipientEmails.length} verified users`);
+      } else {
+        if (!selectedUsers || !Array.isArray(selectedUsers) || selectedUsers.length === 0) {
+          console.log('[EmailRoute] Validation failed: No users selected');
+          return res.status(400).json({ success: false, message: 'At least one user must be selected' })
+        }
+        recipientEmails = selectedUsers.filter(Boolean)
+        console.log(`[EmailRoute] Using ${recipientEmails.length} selected users`);
       }
-      recipientEmails = selectedUsers
+    } catch (dbErr) {
+      console.error('[EmailRoute] Database error:', dbErr);
+      return res.status(500).json({ success: false, message: 'Database error while fetching users' });
     }
 
     if (recipientEmails.length === 0) {
+      console.log('[EmailRoute] No recipients found');
       return res.status(404).json({ success: false, message: 'No recipients found' })
     }
 
-    const html = buildAdminCustomEmailHtml({
-      title: subject,
-      message: message
-    })
+    let html = '';
+    try {
+      html = buildAdminCustomEmailHtml({
+        title: subject,
+        message: message
+      })
+      console.log('[EmailRoute] Template built successfully');
+    } catch (tmplErr) {
+      console.error('[EmailRoute] Template error:', tmplErr);
+      return res.status(500).json({ success: false, message: 'Error generating email template' });
+    }
 
-    // Async send (background)
-    (async () => {
-      try {
-        for (const email of recipientEmails) {
+    // For Vercel/Serverless: We might need to await to ensure emails are sent
+    // But to keep it responsive, we'll try background first with better error catching
+    const processEmails = async () => {
+      console.log('[EmailRoute] Starting background process for', recipientEmails.length, 'emails');
+      for (const email of recipientEmails) {
+        try {
           await sendEmail({
             to: email,
             subject: `${subject} - Farm2Meat`,
             html
-          }).catch(err => console.error(`Failed to send custom email to ${email}:`, err.message))
+          });
+          console.log(`[EmailRoute] Sent to ${email}`);
+        } catch (mailErr) {
+          console.error(`[EmailRoute] Failed to send to ${email}:`, mailErr.message);
         }
-      } catch (err) {
-        console.error('Background email processing error:', err.message)
       }
-    })()
+      console.log('[EmailRoute] Background process completed');
+    };
+    
+    // Start background process without await
+    processEmails().catch(err => {
+      console.error('[EmailRoute] Background process fatal error:', err);
+    });
 
-    res.json({
+    console.log('[EmailRoute] Sending success response to client');
+    return res.status(200).json({
       success: true,
-      message: `Emails are being sent to ${recipientEmails.length} recipients.`,
+      message: `Emails are being processed for ${recipientEmails.length} recipients.`,
       count: recipientEmails.length
     })
   } catch (error) {
-    console.error('POST /api/users/send-email:', error.message)
-    res.status(500).json({ success: false, message: 'Failed to send emails' })
+    console.error('[EmailRoute] UNEXPECTED CRITICAL ERROR:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message,
+      type: error.name
+    })
   }
 })
 
