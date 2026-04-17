@@ -173,12 +173,16 @@ router.post('/send-email', authMiddleware, adminMiddleware, async (req, res) => 
 
     // Async send (background)
     (async () => {
-      for (const email of recipientEmails) {
-        await sendEmail({
-          to: email,
-          subject: `${subject} - Farm2Meat`,
-          html
-        }).catch(err => console.error(`Failed to send custom email to ${email}:`, err.message))
+      try {
+        for (const email of recipientEmails) {
+          await sendEmail({
+            to: email,
+            subject: `${subject} - Farm2Meat`,
+            html
+          }).catch(err => console.error(`Failed to send custom email to ${email}:`, err.message))
+        }
+      } catch (err) {
+        console.error('Background email processing error:', err.message)
       }
     })()
 
