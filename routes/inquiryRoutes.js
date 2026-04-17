@@ -211,8 +211,24 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
 
     // ── Send Confirmation Email ──
     let emailSent = false
-    if (validateEmail(cleanEmail)) {
-      try {
+    try {
+      // Always send admin notification
+      const adminHtml = buildAdminOrderNotificationEmailHtml({
+        orderId: saved.inquiryId,
+        customerName: saved.customerName,
+        items: [{ name: saved.animalName, quantity: saved.quantity }],
+        totalAmount: saved.totalAmount,
+        deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`
+      })
+
+      await sendEmail({
+        to: getAdminEmail(),
+        subject: `New Order Received: ${saved.inquiryId} 🛒`,
+        html: adminHtml
+      }).catch(err => console.error('Failed to send admin order notification:', err.message))
+
+      // Only send to customer if valid email provided
+      if (validateEmail(cleanEmail)) {
         const html = buildOrderConfirmationEmailHtml({
           orderId: saved.inquiryId,
           orderDate: formatOrderDate(new Date()),
@@ -245,25 +261,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
           html
         })
         emailSent = true
-
-        // ── Send Admin Notification ──
-        const adminHtml = buildAdminOrderNotificationEmailHtml({
-          orderId: saved.inquiryId,
-          customerName: saved.customerName,
-          items: [{ name: saved.animalName, quantity: saved.quantity }],
-          totalAmount: saved.totalAmount,
-          deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`
-        })
-
-        sendEmail({
-          to: getAdminEmail(),
-          subject: `New Order Received: ${saved.inquiryId} 🛒`,
-          html: adminHtml
-        }).catch(err => console.error('Failed to send admin order notification:', err.message))
-      } catch (e) {
-        console.error('Email send error (single):', e.message)
-        emailSent = false
       }
+    } catch (e) {
+      console.error('Email handling error (single):', e.message)
+      emailSent = false
     }
 
     res.status(201).json({
@@ -479,21 +480,34 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       }
     }
 
+    // ── Send Confirmation Email ──
     let emailSent = false
-    if (orderSource === 'checkout' && !validateEmail(cleanEmail)) {
-      return res.status(400).json({ success: false, message: 'Valid email is required' })
-    }
+    try {
+      // Always send admin notification
+      const sub = inquiries.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0)
+      const itemsForEmail = inquiries.map((i) => ({
+        name: i.animalName,
+        quantity: i.quantity || 1,
+        unitPrice: i.price || 0,
+        subtotal: i.totalAmount || 0
+      }))
 
-    if (validateEmail(cleanEmail)) {
-      try {
-        const sub = inquiries.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0)
-        const itemsForEmail = inquiries.map((i) => ({
-          name: i.animalName,
-          quantity: i.quantity || 1,
-          unitPrice: i.price || 0,
-          subtotal: i.totalAmount || 0
-        }))
+      const adminHtml = buildAdminOrderNotificationEmailHtml({
+        orderId: orderGroupId,
+        customerName,
+        items: itemsForEmail,
+        totalAmount: sub,
+        deliveryAddress: `${deliveryAddress}, ${city}`
+      })
 
+      await sendEmail({
+        to: getAdminEmail(),
+        subject: `New Order Received: ${orderGroupId} 🛒`,
+        html: adminHtml
+      }).catch(err => console.error('Failed to send admin order notification:', err.message))
+
+      // Only send to customer if valid email provided
+      if (validateEmail(cleanEmail)) {
         let butcherDetails = null
         if (req.body.butcher) {
           const firstInquiryWithButcher = inquiries.find(i => i.butcher)
@@ -526,25 +540,10 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
           html
         })
         emailSent = true
-
-        // ── Send Admin Notification ──
-        const adminHtml = buildAdminOrderNotificationEmailHtml({
-          orderId: orderGroupId,
-          customerName,
-          items: itemsForEmail,
-          totalAmount: sub,
-          deliveryAddress: `${deliveryAddress}, ${city}`
-        })
-
-        await sendEmail({
-          to: getAdminEmail(),
-          subject: `New Order Received: ${orderGroupId} 🛒`,
-          html: adminHtml
-        }).catch(err => console.error('Failed to send admin order notification:', err.message))
-      } catch (e) {
-        console.error(`Failed to send bulk order confirmation email to ${cleanEmail}:`, e.message)
-        emailSent = false
       }
+    } catch (e) {
+      console.error(`Failed to handle order emails for ${orderGroupId}:`, e.message)
+      emailSent = false
     }
 
     res.status(201).json({
