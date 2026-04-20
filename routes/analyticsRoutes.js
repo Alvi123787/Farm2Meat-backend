@@ -2,10 +2,66 @@ import express from 'express'
 import Inquiry from '../models/Inquiry.js'
 import Animal from '../models/Animal.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js'
+import { 
+  getGA4Overview, 
+  getGA4UsersOverTime, 
+  getGA4PageViewsOverTime, 
+  getGA4TopPages 
+} from '../utils/ga4.js'
 
 const router = express.Router()
 
 router.use(authMiddleware, adminMiddleware)
+
+// ── GA4 User Analytics Endpoints ──
+
+router.get('/overview', async (req, res) => {
+  try {
+    const data = await getGA4Overview()
+    if (!data) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Google Analytics is not configured.' 
+      })
+    }
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('GA4 Overview Error:', error.message)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+router.get('/users-over-time', async (req, res) => {
+  try {
+    const data = await getGA4UsersOverTime()
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('GA4 Users Over Time Error:', error.message)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+router.get('/page-views', async (req, res) => {
+  try {
+    const data = await getGA4PageViewsOverTime()
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('GA4 Page Views Error:', error.message)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+router.get('/top-pages', async (req, res) => {
+  try {
+    const data = await getGA4TopPages()
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('GA4 Top Pages Error:', error.message)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// ── Existing Sales/Internal Analytics Endpoints ──
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MS_PER_HOUR = 60 * 60 * 1000
