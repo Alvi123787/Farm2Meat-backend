@@ -10,20 +10,36 @@ const clientEmail = process.env.GA4_CLIENT_EMAIL
 const privateKey = process.env.GA4_PRIVATE_KEY ? process.env.GA4_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined
 
 let analyticsDataClient
+let isMockMode = false
 
 if (propertyId && clientEmail && privateKey) {
-  analyticsDataClient = new BetaAnalyticsDataClient({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey
-    }
-  })
+  try {
+    analyticsDataClient = new BetaAnalyticsDataClient({
+      credentials: {
+        client_email: clientEmail,
+        private_key: privateKey
+      }
+    })
+    console.log('✅ GA4 Analytics: Live client initialized.')
+  } catch (err) {
+    console.error('❌ GA4 Analytics: Initialization failed. Switching to Mock Mode.', err.message)
+    isMockMode = true
+  }
 } else {
-  console.warn('GA4 Analytics: Missing credentials in environment variables. Analytics will be disabled.')
+  console.warn('GA4 Analytics: Missing credentials in environment variables. Running in Mock Mode.')
+  isMockMode = true
 }
 
 export const getGA4Overview = async () => {
-  if (!analyticsDataClient) return null
+  if (isMockMode) {
+    return {
+      totalUsers: '12842',
+      pageViews: '85420',
+      sessions: '15632',
+      activeUsers: '847',
+      isMock: true
+    }
+  }
 
   const [response] = await analyticsDataClient.runReport({
     property: `properties/${propertyId}`,
@@ -41,12 +57,19 @@ export const getGA4Overview = async () => {
     totalUsers: values[0]?.value || '0',
     pageViews: values[1]?.value || '0',
     sessions: values[2]?.value || '0',
-    activeUsers: values[3]?.value || '0'
+    activeUsers: values[3]?.value || '0',
+    isMock: false
   }
 }
 
 export const getGA4UsersOverTime = async () => {
-  if (!analyticsDataClient) return []
+  if (isMockMode) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    return days.map(d => ({
+      date: d,
+      users: Math.floor(Math.random() * (1500 - 800) + 800)
+    }))
+  }
 
   const [response] = await analyticsDataClient.runReport({
     property: `properties/${propertyId}`,
@@ -63,7 +86,13 @@ export const getGA4UsersOverTime = async () => {
 }
 
 export const getGA4PageViewsOverTime = async () => {
-  if (!analyticsDataClient) return []
+  if (isMockMode) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    return days.map(d => ({
+      date: d,
+      views: Math.floor(Math.random() * (12000 - 5000) + 5000)
+    }))
+  }
 
   const [response] = await analyticsDataClient.runReport({
     property: `properties/${propertyId}`,
@@ -80,7 +109,15 @@ export const getGA4PageViewsOverTime = async () => {
 }
 
 export const getGA4TopPages = async () => {
-  if (!analyticsDataClient) return []
+  if (isMockMode) {
+    return [
+      { url: '/home', views: 15420, users: 12340 },
+      { url: '/shop', views: 12350, users: 9870 },
+      { url: '/about', views: 4230, users: 3380 },
+      { url: '/contact', views: 3450, users: 2760 },
+      { url: '/checkout', views: 2890, users: 2310 }
+    ]
+  }
 
   const [response] = await analyticsDataClient.runReport({
     property: `properties/${propertyId}`,

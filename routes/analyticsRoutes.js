@@ -18,12 +18,6 @@ router.use(authMiddleware, adminMiddleware)
 router.get('/overview', async (req, res) => {
   try {
     const data = await getGA4Overview()
-    if (!data) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Google Analytics is not configured.' 
-      })
-    }
     res.json({ success: true, data })
   } catch (error) {
     console.error('GA4 Overview Error:', error.message)
