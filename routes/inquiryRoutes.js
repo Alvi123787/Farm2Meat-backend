@@ -183,13 +183,24 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       } else if (userId === 'built-in-admin') {
         // Built-in admin, skip DB user update
       } else {
-        // Guest user: Save/Update in GuestUser collection
+        // Guest user: Save/Update in GuestUser collection with all provided details
         await GuestUser.findOneAndUpdate(
           { email: cleanEmail },
           { 
-            email: cleanEmail, 
-            sessionId: req.guestUserId || '',
-            lastActivity: new Date() 
+            $set: {
+              name: customerName,
+              email: cleanEmail,
+              phone: phone,
+              deliveryAddress: deliveryAddress,
+              city: city,
+              lastOrderId: saved.inquiryId,
+              sessionId: req.guestUserId || '',
+              lastActivity: new Date()
+            },
+            $inc: { 
+              orderCount: 1,
+              totalSpent: saved.totalAmount
+            }
           },
           { upsert: true, new: true }
         )

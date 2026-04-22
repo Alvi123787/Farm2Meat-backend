@@ -1,5 +1,6 @@
 import express from 'express'
 import User from '../models/User.js'
+import GuestUser from '../models/GuestUser.js'
 import { authMiddleware, adminMiddleware } from '../middleware/authMiddleware.js'
 import { sendEmail } from '../utils/mailer.js'
 import { buildPromotionalEmailHtml, buildAdminCustomEmailHtml } from '../utils/orderEmailTemplates.js'
@@ -22,6 +23,52 @@ const toPublicUser = (doc) => {
     lastActivity: doc.lastActivity
   }
 }
+
+router.get('/guest-users', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20))
+    const search = String(req.query.search || '').trim()
+
+    const query = {}
+
+    if (search) {
+      const re = new RegExp(escapeRegex(search), 'i')
+      query.$or = [
+        { name: re },
+        { email: re },
+        { phone: re },
+        { deliveryAddress: re },
+        { city: re }
+      ]
+    }
+
+    const skip = (page - 1) * limit
+
+    const [guests, total] = await Promise.all([
+      GuestUser.find(query)
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      GuestUser.countDocuments(query)
+    ])
+
+    res.json({
+      success: true,
+      data: guests,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    console.error('GET /api/users/guest-users:', error.message)
+    res.status(500).json({ success: false, message: 'Failed to fetch guest users' })
+  }
+})
 
 router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
