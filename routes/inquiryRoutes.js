@@ -476,12 +476,24 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       } else if (userId === 'built-in-admin') {
         // Built-in admin, skip DB user update
       } else {
+        const totalSpentInBulk = inquiries.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0)
         await GuestUser.findOneAndUpdate(
           { email: cleanEmail },
           { 
-            email: cleanEmail, 
-            sessionId: req.guestUserId || '',
-            lastActivity: new Date() 
+            $set: {
+              name: customerName,
+              email: cleanEmail,
+              phone: phone,
+              deliveryAddress: deliveryAddress,
+              city: city,
+              lastOrderId: orderGroupId,
+              sessionId: req.guestUserId || '',
+              lastActivity: new Date()
+            },
+            $inc: { 
+              orderCount: 1,
+              totalSpent: totalSpentInBulk
+            }
           },
           { upsert: true, new: true }
         )
@@ -587,7 +599,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' })
     }
 
-    const inquiries = await Inquiry.find({ userId }).sort({ date: -1 })
+    const inquiries = await Inquiry.find({ userId }).sort({ createdAt: -1 })
 
     res.status(200).json({
       success: true,
@@ -607,7 +619,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find().sort({ date: -1 })
+    const inquiries = await Inquiry.find().sort({ createdAt: -1 })
 
     res.status(200).json({
       success: true,

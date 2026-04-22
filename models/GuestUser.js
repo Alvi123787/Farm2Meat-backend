@@ -7,7 +7,7 @@ const guestUserSchema = new mongoose.Schema({
   deliveryAddress: { type: String, trim: true },
   city: { type: String, trim: true },
   lastOrderId: { type: String, trim: true },
-  orderCount: { type: Number, default: 1 },
+  orderCount: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
   sessionId: { type: String, default: '', trim: true },
   lastActivity: { type: Date, default: Date.now },
