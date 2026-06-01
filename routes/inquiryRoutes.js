@@ -20,7 +20,7 @@ import {
 
 const router = express.Router()
 
-const getAdminEmail = () => process.env.ADMIN_EMAIL || 'farm2meat@gmail.com'
+const getAdminEmail = () => process.env.ADMIN_EMAIL || 'onlymeat@gmail.com'
 
 // ── Helper: Generate unique inquiry ID ──
 const generateInquiryId = () => {
@@ -269,7 +269,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
 
         await sendEmail({
           to: cleanEmail,
-          subject: `Order Confirmation (${saved.inquiryId}) - Farm2Meat`,
+          subject: `Order Confirmation (${saved.inquiryId}) - OnlyMeat`,
           html
         })
         emailSent = true
@@ -560,7 +560,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
 
         await sendEmail({
           to: cleanEmail,
-          subject: `Order Confirmation (${orderGroupId}) - Farm2Meat`,
+          subject: `Order Confirmation (${orderGroupId}) - OnlyMeat`,
           html
         })
         emailSent = true

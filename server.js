@@ -30,7 +30,7 @@ const app = express()
 // ── Middleware ──
 const allowedOrigins = process.env.FRONTEND_ORIGIN 
   ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
-  : ['http://localhost:5173', 'https://farm2meat.netlify.app']
+  : ['http://localhost:5173', 'https://onlymeat.netlify.app']
 
 app.use(cors({ 
   origin: allowedOrigins,
@@ -52,7 +52,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }))
 
 // ── Root Route (Health Check) ──
 app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Farm2Meat API is running 🚀' })
+  res.json({ success: true, message: 'OnlyMeat API is running 🚀' })
 })
 
 app.use(dbMiddleware) // Ensure DB is connected before any middleware that uses it

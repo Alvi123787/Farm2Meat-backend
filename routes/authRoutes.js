@@ -67,7 +67,7 @@ const sendVerificationEmail = async (email, verificationToken) => {
   })
   await sendEmail({
     to: email,
-    subject: 'Verify your Farm2Meat account',
+    subject: 'Verify your OnlyMeat account',
     html
   })
 }
@@ -324,7 +324,7 @@ router.post('/forgot-password', async (req, res) => {
 
     await sendEmail({
       to: user.email,
-      subject: 'Password Reset - Farm2Meat',
+      subject: 'Password Reset - OnlyMeat',
       html: resetHtml
     })
 

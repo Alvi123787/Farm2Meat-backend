@@ -56,14 +56,14 @@ const baseTemplate = ({ siteName, title, message, content, supportEmail, support
  * Order Confirmation Email Template
  */
 export const buildOrderConfirmationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   orderId,
   orderDate,
   paymentMethod,
   customer,
   items,
   pricing,
-  supportEmail = 'farm2meat@gmail.com',
+  supportEmail = 'onlymeat@gmail.com',
   supportPhone = '03089880479',
   ctaUrl,
   butcher, // new
@@ -240,11 +240,11 @@ export const buildOrderConfirmationEmailHtml = ({
  * Future support: Order Status Update Template
  */
 export const buildOrderStatusEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   orderId,
   status, // 'Shipped', 'Delivered', etc.
   customerName,
-  supportEmail = 'farm2meat@gmail.com',
+  supportEmail = 'onlymeat@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const safeName = escapeHtml(customerName)
@@ -276,13 +276,13 @@ export const buildOrderStatusEmailHtml = ({
  * New Animal Notification Template
  */
 export const buildNewAnimalNotificationHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   animalName,
   animalPrice,
   animalDescription,
   animalImageUrl,
   animalUrl,
-  supportEmail = 'farm2meat@gmail.com',
+  supportEmail = 'onlymeat@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const safeAnimalName = escapeHtml(animalName)
@@ -331,7 +331,7 @@ export const buildNewAnimalNotificationHtml = ({
  * Admin: New Order Notification
  */
 export const buildAdminOrderNotificationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   orderId,
   customerName,
   items,
@@ -372,7 +372,7 @@ export const buildAdminOrderNotificationEmailHtml = ({
  * Admin: New User Registration Notification
  */
 export const buildAdminUserRegistrationNotificationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   userName,
   userEmail,
   registrationDate,
@@ -404,7 +404,7 @@ export const buildAdminUserRegistrationNotificationEmailHtml = ({
  * Sold Out Notification
  */
 export const buildSoldOutNotificationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   animalName,
   animalPrice,
   supportEmail,
@@ -438,7 +438,7 @@ export const buildSoldOutNotificationEmailHtml = ({
  * Multiple Items Sold Summary
  */
 export const buildAllItemsSoldNotificationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   supportEmail,
   supportPhone,
   websiteUrl = 'http://localhost:5173'
@@ -466,10 +466,10 @@ export const buildAllItemsSoldNotificationEmailHtml = ({
  * Admin: Custom Message Template
  */
 export const buildAdminCustomEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   title,
   message,
-  supportEmail = 'farm2meat@gmail.com',
+  supportEmail = 'onlymeat@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const content = `
@@ -480,7 +480,7 @@ export const buildAdminCustomEmailHtml = ({
   return baseTemplate({
     siteName,
     title: escapeHtml(title),
-    message: 'Important update from Farm2Meat',
+    message: 'Important update from OnlyMeat',
     content,
     supportEmail,
     supportPhone
@@ -491,7 +491,7 @@ export const buildAdminCustomEmailHtml = ({
  * Promotional / Marketing Email
  */
 export const buildPromotionalEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   title,
   offerMessage,
   imageUrl,
@@ -529,7 +529,7 @@ export const buildPromotionalEmailHtml = ({
  * Order Feedback / Review Request
  */
 export const buildOrderFeedbackEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   customerName,
   orderId,
   items,
@@ -562,7 +562,7 @@ export const buildOrderFeedbackEmailHtml = ({
  * Signup / resend — email verification link (time-limited on server)
  */
 export const buildWelcomeVerificationEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   customerName,
   verificationUrl,
   supportEmail,
@@ -594,7 +594,7 @@ export const buildWelcomeVerificationEmailHtml = ({
  * Expired Cart / Removed Animal Notification
  */
 export const buildExpiredCartRemovalEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   animalName,
   reason = 'it has been sold or your cart expired',
   supportEmail,
@@ -627,7 +627,7 @@ export const buildExpiredCartRemovalEmailHtml = ({
  * Password Reset Template
  */
 export const buildPasswordResetEmailHtml = ({
-  siteName = 'Farm2Meat',
+  siteName = 'OnlyMeat',
   customerName,
   resetUrl,
   supportEmail,
