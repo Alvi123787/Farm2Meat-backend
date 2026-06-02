@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
+dotenv.config()
+
 import animalRoutes from './routes/animalRoutes.js'
 import inquiryRoutes from './routes/inquiryRoutes.js'
 import analyticsRoutes from './routes/analyticsRoutes.js'
@@ -17,8 +19,6 @@ import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
 import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
 import { activityMiddleware } from './middleware/activityMiddleware.js'
 import { dbMiddleware } from './middleware/dbMiddleware.js'
-
-dotenv.config()
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET is not defined.')

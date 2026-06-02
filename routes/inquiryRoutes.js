@@ -264,7 +264,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
             total: saved.totalAmount
           },
           butcher: saved.butcher,
-          ctaUrl: `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/shop`
+          ctaUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/shop`
         })
 
         await sendEmail({
@@ -555,7 +555,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
           items: itemsForEmail,
           pricing: { subtotal: sub, deliveryCharge: 0, total: sub },
           butcher: butcherDetails,
-          ctaUrl: `${process.env.FRONTEND_ORIGIN || 'http://localhost:5173'}/shop`
+          ctaUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/shop`
         })
 
         await sendEmail({
