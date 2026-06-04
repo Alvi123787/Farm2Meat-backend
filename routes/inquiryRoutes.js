@@ -133,8 +133,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     // Calculate Total with Service
     const finalTotal = (totalAmount || (parsedPrice * qty)) + animalCarePrice
 
-    // 20% Advance Calculation
-    advanceAmount = Math.round(finalTotal * 0.20)
+    // 20% Advance Calculation (Only for Livestock)
+    if (!isMeat) {
+      advanceAmount = Math.round(finalTotal * 0.20)
+    }
     remainingAmount = finalTotal - advanceAmount
 
     const newInquiry = new Inquiry({
@@ -261,10 +263,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
             subtotal: saved.totalAmount
           }],
           pricing: {
-            subtotal: saved.totalAmount,
-            deliveryCharge: 0,
-            total: saved.totalAmount
-          },
+          subtotal: saved.totalAmount,
+          deliveryCharge: 50,
+          total: saved.totalAmount + 50
+        },
           butcher: saved.butcher,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
@@ -415,8 +417,10 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       const itemAnimalCarePrice = animalCare ? 100 : 0
       const itemTotalWithCare = itemSubtotal + itemAnimalCarePrice
       
-      // Calculate individual advance (approx 20%)
-      const itemAdvance = Math.round(itemTotalWithCare * 0.20)
+      const isItemMeat = normalize(item.itemType) === 'meat'
+
+      // Calculate individual advance (approx 20%) - Only for Livestock
+      const itemAdvance = !isItemMeat ? Math.round(itemTotalWithCare * 0.20) : 0
       const itemRemaining = itemTotalWithCare - itemAdvance
 
       const userId = String(req.user?.id || '')
@@ -556,7 +560,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             city
           },
           items: itemsForEmail,
-          pricing: { subtotal: sub, deliveryCharge: 0, total: sub },
+          pricing: { subtotal: sub, deliveryCharge: 50, total: sub + 50 },
           butcher: butcherDetails,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
