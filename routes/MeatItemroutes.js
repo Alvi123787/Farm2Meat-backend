@@ -1,8 +1,8 @@
 // routes/meatItemRoutes.js
 
-const express = require('express')
+import express from 'express'
 const router  = express.Router()
-const {
+import {
   getAllItems,
   getBestsellers,
   getByCategory,
@@ -13,18 +13,13 @@ const {
   toggleBestseller,
   deleteItem,
   reorderItems,
-} = require('../controllers/meatItemController')
+} from '../controller/Meatitemcontroller.js'
 
-const { protect } = require('../middleware/authMiddleware')
+import { authMiddleware, adminMiddleware } from '../middleware/authMiddleware.js'
 
 // ── Public routes ─────────────────────────────────────────────────────────────
 
 // GET /api/meat-items                  — all items (filtered/paginated)
-// GET /api/meat-items?category=mutton  — filter by category
-// GET /api/meat-items?isBestseller=true
-// GET /api/meat-items?isAvailable=true
-// GET /api/meat-items?search=chops
-// GET /api/meat-items?sort=price&page=1&limit=10
 router.get('/', getAllItems)
 
 // GET /api/meat-items/bestsellers      — bestsellers only (homepage section)
@@ -33,27 +28,27 @@ router.get('/bestsellers', getBestsellers)
 // GET /api/meat-items/by-category      — grouped by category (menu page)
 router.get('/by-category', getByCategory)
 
-// PATCH /api/meat-items/reorder        — bulk sort order update (admin)
-router.patch('/reorder', protect, reorderItems)
-
 // GET /api/meat-items/:id              — single item
 router.get('/:id', getItemById)
 
 // ── Admin routes (protected) ──────────────────────────────────────────────────
 
+// PATCH /api/meat-items/reorder        — bulk sort order update (admin)
+router.patch('/reorder', authMiddleware, adminMiddleware, reorderItems)
+
 // POST   /api/meat-items               — create new item
-router.post('/', protect, createItem)
+router.post('/', authMiddleware, adminMiddleware, createItem)
 
 // PUT    /api/meat-items/:id           — full/partial update
-router.put('/:id', protect, updateItem)
+router.put('/:id', authMiddleware, adminMiddleware, updateItem)
 
 // PATCH  /api/meat-items/:id/toggle-availability
-router.patch('/:id/toggle-availability', protect, toggleAvailability)
+router.patch('/:id/toggle-availability', authMiddleware, adminMiddleware, toggleAvailability)
 
 // PATCH  /api/meat-items/:id/toggle-bestseller
-router.patch('/:id/toggle-bestseller', protect, toggleBestseller)
+router.patch('/:id/toggle-bestseller', authMiddleware, adminMiddleware, toggleBestseller)
 
 // DELETE /api/meat-items/:id           — delete item
-router.delete('/:id', protect, deleteItem)
+router.delete('/:id', authMiddleware, adminMiddleware, deleteItem)
 
-module.exports = router
+export default router

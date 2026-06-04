@@ -1,6 +1,6 @@
 // models/MeatItem.js
 
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const meatItemSchema = new mongoose.Schema(
   {
@@ -84,4 +84,4 @@ meatItemSchema.virtual('priceLabel').get(function () {
 
 const MeatItem = mongoose.model('MeatItem', meatItemSchema)
 
-module.exports = MeatItem
+export default MeatItem

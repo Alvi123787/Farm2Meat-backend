@@ -1,6 +1,6 @@
 // controllers/meatItemController.js
 
-const MeatItem = require('../models/MeatItem')
+import MeatItem from '../models/MeatItem.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,17 +48,8 @@ const buildFilter = (query) => {
  * @desc    Get all meat items (with filtering, sorting, pagination)
  * @route   GET /api/meat-items
  * @access  Public
- *
- * Query params:
- *   category    – mutton | beef | chicken | fish | all
- *   isBestseller – true | false
- *   isAvailable  – true | false
- *   search       – text search
- *   page         – page number (default: 1)
- *   limit        – items per page (default: 20)
- *   sort         – sortOrder | -createdAt | price | -price
  */
-const getAllItems = asyncHandler(async (req, res) => {
+export const getAllItems = asyncHandler(async (req, res) => {
   const filter = buildFilter(req.query)
 
   const page  = Math.max(1, parseInt(req.query.page)  || 1)
@@ -95,7 +86,7 @@ const getAllItems = asyncHandler(async (req, res) => {
  * @route   GET /api/meat-items/bestsellers
  * @access  Public
  */
-const getBestsellers = asyncHandler(async (req, res) => {
+export const getBestsellers = asyncHandler(async (req, res) => {
   const limit = Math.min(20, parseInt(req.query.limit) || 6)
 
   const items = await MeatItem.find({ isBestseller: true, isAvailable: true })
@@ -111,7 +102,7 @@ const getBestsellers = asyncHandler(async (req, res) => {
  * @route   GET /api/meat-items/by-category
  * @access  Public
  */
-const getByCategory = asyncHandler(async (req, res) => {
+export const getByCategory = asyncHandler(async (req, res) => {
   const onlyAvailable = req.query.isAvailable !== 'false'
 
   const filter = onlyAvailable ? { isAvailable: true } : {}
@@ -141,7 +132,7 @@ const getByCategory = asyncHandler(async (req, res) => {
  * @route   GET /api/meat-items/:id
  * @access  Public
  */
-const getItemById = asyncHandler(async (req, res) => {
+export const getItemById = asyncHandler(async (req, res) => {
   const item = await MeatItem.findById(req.params.id).lean()
 
   if (!item) {
@@ -156,7 +147,7 @@ const getItemById = asyncHandler(async (req, res) => {
  * @route   POST /api/meat-items
  * @access  Admin
  */
-const createItem = asyncHandler(async (req, res) => {
+export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, sortOrder,
@@ -183,7 +174,7 @@ const createItem = asyncHandler(async (req, res) => {
  * @route   PUT /api/meat-items/:id
  * @access  Admin
  */
-const updateItem = asyncHandler(async (req, res) => {
+export const updateItem = asyncHandler(async (req, res) => {
   const allowed = [
     'name', 'category', 'badge', 'price', 'unit',
     'description', 'imageUrl', 'isBestseller', 'isAvailable', 'sortOrder',
@@ -216,7 +207,7 @@ const updateItem = asyncHandler(async (req, res) => {
  * @route   PATCH /api/meat-items/:id/toggle-availability
  * @access  Admin
  */
-const toggleAvailability = asyncHandler(async (req, res) => {
+export const toggleAvailability = asyncHandler(async (req, res) => {
   const item = await MeatItem.findById(req.params.id)
 
   if (!item) {
@@ -234,7 +225,7 @@ const toggleAvailability = asyncHandler(async (req, res) => {
  * @route   PATCH /api/meat-items/:id/toggle-bestseller
  * @access  Admin
  */
-const toggleBestseller = asyncHandler(async (req, res) => {
+export const toggleBestseller = asyncHandler(async (req, res) => {
   const item = await MeatItem.findById(req.params.id)
 
   if (!item) {
@@ -252,7 +243,7 @@ const toggleBestseller = asyncHandler(async (req, res) => {
  * @route   DELETE /api/meat-items/:id
  * @access  Admin
  */
-const deleteItem = asyncHandler(async (req, res) => {
+export const deleteItem = asyncHandler(async (req, res) => {
   const item = await MeatItem.findByIdAndDelete(req.params.id).lean()
 
   if (!item) {
@@ -266,10 +257,8 @@ const deleteItem = asyncHandler(async (req, res) => {
  * @desc    Bulk update sort order (drag-to-reorder)
  * @route   PATCH /api/meat-items/reorder
  * @access  Admin
- *
- * Body: { items: [{ id: '...', sortOrder: 0 }, ...] }
  */
-const reorderItems = asyncHandler(async (req, res) => {
+export const reorderItems = asyncHandler(async (req, res) => {
   const { items } = req.body
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -287,17 +276,3 @@ const reorderItems = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { updated: items.length })
 })
-
-// ── Exports ───────────────────────────────────────────────────────────────────
-module.exports = {
-  getAllItems,
-  getBestsellers,
-  getByCategory,
-  getItemById,
-  createItem,
-  updateItem,
-  toggleAvailability,
-  toggleBestseller,
-  deleteItem,
-  reorderItems,
-}

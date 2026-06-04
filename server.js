@@ -15,6 +15,7 @@ import cartRoutes from './routes/cartRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import butcherRoutes from './routes/butcherRoutes.js'
 import uploadRoutes from './routes/uploadRoutes.js'
+import meatItemRoutes from './routes/MeatItemroutes.js'
 import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
 import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
 import { activityMiddleware } from './middleware/activityMiddleware.js'
@@ -72,6 +73,7 @@ app.use('/api/reviews', reviewRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/butchers', butcherRoutes)
 app.use('/api/upload', uploadRoutes)
+app.use('/api/meat-items', meatItemRoutes)
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
 app.use((err, req, res, next) => {

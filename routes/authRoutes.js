@@ -14,6 +14,8 @@ import {
 
 import CartSession from '../models/CartSession.js'
 
+import { getFrontendOrigin } from '../utils/config.js'
+
 const router = express.Router()
 
 const getAdminEmail = () => {
@@ -32,7 +34,6 @@ const getJwtSecret = () => {
   if (!secret) throw new Error('JWT_SECRET is not defined in environment variables')
   return secret
 }
-const getFrontendOrigin = () => process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
 
 const buildToken = ({ sub, email, role }) =>
   jwt.sign({ sub, email, role }, getJwtSecret(), { expiresIn: '30d' })
