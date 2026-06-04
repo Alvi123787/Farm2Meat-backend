@@ -1,0 +1,303 @@
+// controllers/meatItemController.js
+
+const MeatItem = require('../models/MeatItem')
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Wraps async route handlers so we don't repeat try/catch everywhere.
+ */
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next)
+
+/**
+ * Sends a consistent success response.
+ */
+const sendSuccess = (res, data, statusCode = 200, meta = {}) => {
+  res.status(statusCode).json({ success: true, ...meta, data })
+}
+
+/**
+ * Builds a MongoDB query filter from req.query params.
+ */
+const buildFilter = (query) => {
+  const filter = {}
+
+  if (query.category && query.category !== 'all') {
+    filter.category = query.category.toLowerCase()
+  }
+
+  if (query.isBestseller !== undefined) {
+    filter.isBestseller = query.isBestseller === 'true'
+  }
+
+  if (query.isAvailable !== undefined) {
+    filter.isAvailable = query.isAvailable === 'true'
+  }
+
+  if (query.search) {
+    filter.$text = { $search: query.search }
+  }
+
+  return filter
+}
+
+// ── Controllers ───────────────────────────────────────────────────────────────
+
+/**
+ * @desc    Get all meat items (with filtering, sorting, pagination)
+ * @route   GET /api/meat-items
+ * @access  Public
+ *
+ * Query params:
+ *   category    – mutton | beef | chicken | fish | all
+ *   isBestseller – true | false
+ *   isAvailable  – true | false
+ *   search       – text search
+ *   page         – page number (default: 1)
+ *   limit        – items per page (default: 20)
+ *   sort         – sortOrder | -createdAt | price | -price
+ */
+const getAllItems = asyncHandler(async (req, res) => {
+  const filter = buildFilter(req.query)
+
+  const page  = Math.max(1, parseInt(req.query.page)  || 1)
+  const limit = Math.min(100, parseInt(req.query.limit) || 20)
+  const skip  = (page - 1) * limit
+
+  const sortMap = {
+    sortOrder:   { sortOrder: 1 },
+    '-sortOrder':{ sortOrder: -1 },
+    price:       { price: 1 },
+    '-price':    { price: -1 },
+    newest:      { createdAt: -1 },
+    oldest:      { createdAt: 1 },
+  }
+  const sort = sortMap[req.query.sort] || { sortOrder: 1, createdAt: -1 }
+
+  const [items, total] = await Promise.all([
+    MeatItem.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+    MeatItem.countDocuments(filter),
+  ])
+
+  sendSuccess(res, items, 200, {
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  })
+})
+
+/**
+ * @desc    Get bestseller items only
+ * @route   GET /api/meat-items/bestsellers
+ * @access  Public
+ */
+const getBestsellers = asyncHandler(async (req, res) => {
+  const limit = Math.min(20, parseInt(req.query.limit) || 6)
+
+  const items = await MeatItem.find({ isBestseller: true, isAvailable: true })
+    .sort({ sortOrder: 1, createdAt: -1 })
+    .limit(limit)
+    .lean()
+
+  sendSuccess(res, items)
+})
+
+/**
+ * @desc    Get items grouped by category (for the full menu page)
+ * @route   GET /api/meat-items/by-category
+ * @access  Public
+ */
+const getByCategory = asyncHandler(async (req, res) => {
+  const onlyAvailable = req.query.isAvailable !== 'false'
+
+  const filter = onlyAvailable ? { isAvailable: true } : {}
+
+  const items = await MeatItem.find(filter)
+    .sort({ sortOrder: 1, createdAt: -1 })
+    .lean()
+
+  // Group into { mutton: [...], beef: [...], ... }
+  const grouped = items.reduce((acc, item) => {
+    if (!acc[item.category]) acc[item.category] = []
+    acc[item.category].push(item)
+    return acc
+  }, {})
+
+  // Preserve category display order
+  const ordered = {}
+  for (const cat of ['mutton', 'beef', 'chicken', 'fish']) {
+    if (grouped[cat]) ordered[cat] = grouped[cat]
+  }
+
+  sendSuccess(res, ordered)
+})
+
+/**
+ * @desc    Get single meat item by ID
+ * @route   GET /api/meat-items/:id
+ * @access  Public
+ */
+const getItemById = asyncHandler(async (req, res) => {
+  const item = await MeatItem.findById(req.params.id).lean()
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: 'Item not found' })
+  }
+
+  sendSuccess(res, item)
+})
+
+/**
+ * @desc    Create a new meat item
+ * @route   POST /api/meat-items
+ * @access  Admin
+ */
+const createItem = asyncHandler(async (req, res) => {
+  const {
+    name, category, badge, price, unit,
+    description, imageUrl, isBestseller, isAvailable, sortOrder,
+  } = req.body
+
+  const item = await MeatItem.create({
+    name,
+    category,
+    badge,
+    price: Number(price),
+    unit,
+    description,
+    imageUrl,
+    isBestseller: isBestseller === true || isBestseller === 'true',
+    isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
+    sortOrder:    Number(sortOrder) || 0,
+  })
+
+  sendSuccess(res, item, 201)
+})
+
+/**
+ * @desc    Update a meat item (full or partial)
+ * @route   PUT /api/meat-items/:id
+ * @access  Admin
+ */
+const updateItem = asyncHandler(async (req, res) => {
+  const allowed = [
+    'name', 'category', 'badge', 'price', 'unit',
+    'description', 'imageUrl', 'isBestseller', 'isAvailable', 'sortOrder',
+  ]
+
+  // Only pick allowed fields from the body
+  const updates = {}
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key]
+  }
+
+  if (updates.price !== undefined) updates.price = Number(updates.price)
+  if (updates.sortOrder !== undefined) updates.sortOrder = Number(updates.sortOrder)
+
+  const item = await MeatItem.findByIdAndUpdate(
+    req.params.id,
+    { $set: updates },
+    { new: true, runValidators: true }
+  ).lean()
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: 'Item not found' })
+  }
+
+  sendSuccess(res, item)
+})
+
+/**
+ * @desc    Toggle availability of an item
+ * @route   PATCH /api/meat-items/:id/toggle-availability
+ * @access  Admin
+ */
+const toggleAvailability = asyncHandler(async (req, res) => {
+  const item = await MeatItem.findById(req.params.id)
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: 'Item not found' })
+  }
+
+  item.isAvailable = !item.isAvailable
+  await item.save()
+
+  sendSuccess(res, { id: item._id, isAvailable: item.isAvailable })
+})
+
+/**
+ * @desc    Toggle bestseller status of an item
+ * @route   PATCH /api/meat-items/:id/toggle-bestseller
+ * @access  Admin
+ */
+const toggleBestseller = asyncHandler(async (req, res) => {
+  const item = await MeatItem.findById(req.params.id)
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: 'Item not found' })
+  }
+
+  item.isBestseller = !item.isBestseller
+  await item.save()
+
+  sendSuccess(res, { id: item._id, isBestseller: item.isBestseller })
+})
+
+/**
+ * @desc    Delete a meat item
+ * @route   DELETE /api/meat-items/:id
+ * @access  Admin
+ */
+const deleteItem = asyncHandler(async (req, res) => {
+  const item = await MeatItem.findByIdAndDelete(req.params.id).lean()
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: 'Item not found' })
+  }
+
+  sendSuccess(res, { id: item._id, deleted: true })
+})
+
+/**
+ * @desc    Bulk update sort order (drag-to-reorder)
+ * @route   PATCH /api/meat-items/reorder
+ * @access  Admin
+ *
+ * Body: { items: [{ id: '...', sortOrder: 0 }, ...] }
+ */
+const reorderItems = asyncHandler(async (req, res) => {
+  const { items } = req.body
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ success: false, message: 'items array is required' })
+  }
+
+  const bulkOps = items.map(({ id, sortOrder }) => ({
+    updateOne: {
+      filter: { _id: id },
+      update: { $set: { sortOrder: Number(sortOrder) } },
+    },
+  }))
+
+  await MeatItem.bulkWrite(bulkOps)
+
+  sendSuccess(res, { updated: items.length })
+})
+
+// ── Exports ───────────────────────────────────────────────────────────────────
+module.exports = {
+  getAllItems,
+  getBestsellers,
+  getByCategory,
+  getItemById,
+  createItem,
+  updateItem,
+  toggleAvailability,
+  toggleBestseller,
+  deleteItem,
+  reorderItems,
+}
