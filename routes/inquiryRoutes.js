@@ -46,7 +46,7 @@ const generateOrderGroupId = () => {
 const formatOrderDate = (d = new Date()) =>
   d.toLocaleString('en-PK', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
-const normalize = (v) => String(v || '').trim()
+const normalize = (v) => String(v || '').trim().toLowerCase()
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim())
 
@@ -94,15 +94,16 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     const qty = quantity || 1
 
     const userId = String(req.user?.id || '')
-    // animalId already declared in destructured req.body above
-    let category = ''
+    const isMeat = normalize(req.body.itemType) === 'meat'
+    
+    let category = req.body.category || ''
     let animalCarePrice = 0
     let advanceAmount = 0
     let remainingAmount = 0
 
-    if (animalId) {
+    if (animalId && !isMeat) {
       // ── ATOMIC AVAILABILITY CHECK & RESERVE ──
-      // Using findOneAndUpdate ensures only one request can claim the animal
+      // Only for livestock, not meat items
       const animal = await Animal.findOneAndUpdate(
         { 
           _id: animalId, 
@@ -121,20 +122,20 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
           message: 'This animal has just been purchased by another user. Please select another animal.' 
         })
       }
-      category = animal.category || ''
-
-      // Calculate Care Service Price if selected
-      if (animalCare) {
-        animalCarePrice = 100 // Example: Rs. 100 per day or fixed
-      }
-
-      // Calculate Total with Service
-      const finalTotal = (totalAmount || (parsedPrice * qty)) + animalCarePrice
-
-      // 20% Advance Calculation
-      advanceAmount = Math.round(finalTotal * 0.20)
-      remainingAmount = finalTotal - advanceAmount
+      category = animal.category || category
     }
+
+    // Calculate Care Service Price if selected
+    if (animalCare) {
+      animalCarePrice = 100 // Example: Rs. 100 per day or fixed
+    }
+
+    // Calculate Total with Service
+    const finalTotal = (totalAmount || (parsedPrice * qty)) + animalCarePrice
+
+    // 20% Advance Calculation
+    advanceAmount = Math.round(finalTotal * 0.20)
+    remainingAmount = finalTotal - advanceAmount
 
     const newInquiry = new Inquiry({
       guestUserId: req.guestUserId || '',
@@ -151,7 +152,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       weight: weight || '',
       price: parsedPrice,
       quantity: qty,
-      totalAmount: (totalAmount || (parsedPrice * qty)) + animalCarePrice,
+      totalAmount: finalTotal,
       deliveryAddress: deliveryAddress || '',
       city: city || '',
       deliveryDate: deliveryDate || '',
@@ -332,9 +333,14 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
     const inquiries = []
     const orderGroupId = generateOrderGroupId()
 
-    const animalIds = (items || [])
+    const livestockItems = (items || []).filter(it => normalize(it.itemType) !== 'meat')
+    const meatItems = (items || []).filter(it => normalize(it.itemType) === 'meat')
+
+    const animalIds = livestockItems
       .map((item) => String(item?._id || item?.id || '').trim())
       .filter(Boolean)
+
+    const animalMap = new Map()
 
     if (animalIds.length > 0) {
       const reservedAnimals = []
@@ -382,78 +388,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         }
 
         // Create inquiries for all reserved animals
-        const animalMap = new Map(reservedAnimals.map(a => [String(a._id), a]))
-        
-        const totalItemsInBulk = items.length
-        const totalProductSubtotal = items.reduce((sum, item) => sum + (parsePrice(item.price) * (item.quantity || 1)), 0)
-        const bulkAnimalCarePrice = animalCare ? (totalItemsInBulk * 100) : 0 // Rs. 100 per animal if care enabled
-        const bulkGrandTotal = totalProductSubtotal + bulkAnimalCarePrice
-        const bulkAdvanceTotal = Math.round(bulkGrandTotal * 0.20)
-        
-        // Distribute advance/care price across items proportionally or evenly
-        // For simplicity, we'll store individual calculations on each inquiry
-        
-        const inquiryPromises = items.map(async (item, index) => {
-          const parsedPrice = parsePrice(item.price)
-          const qty = item.quantity || 1
-          const itemSubtotal = parsedPrice * qty
-          
-          const itemAnimalCarePrice = animalCare ? 100 : 0
-          const itemTotalWithCare = itemSubtotal + itemAnimalCarePrice
-          
-          // Calculate individual advance (approx 20%)
-          // For the last item, we'll adjust to match the exact bulk totals
-          let itemAdvance = Math.round(itemTotalWithCare * 0.20)
-          let itemRemaining = itemTotalWithCare - itemAdvance
-
-          const userId = String(req.user?.id || '')
-          const animalData = animalMap.get(String(item?._id || item?.id || ''))
-
-          const inquiry = new Inquiry({
-            guestUserId: req.guestUserId || '',
-            userId,
-            orderGroupId,
-            inquiryId: generateInquiryId(),
-            customerName,
-            phone,
-            email: email || '',
-            animalName: item.name || item.animalName || 'Unknown',
-            animalTag: item.tagId || item.animalTag || item._id || '',
-            animalId: item._id || item.id || '',
-            breed: item.breed || '',
-            category: animalData?.category || '',
-            weight: item.weight || '',
-            price: parsedPrice,
-            quantity: qty,
-            totalAmount: itemTotalWithCare,
-            deliveryAddress: deliveryAddress || '',
-            city: city || '',
-            deliveryDate: deliveryDate || '',
-            paymentMethod: paymentMethod || 'whatsapp',
-            orderSource: orderSource || 'cart',
-            status: 'Pending',
-            notes: notes || '',
-            animalCare: animalCare || false,
-            animalCarePrice: itemAnimalCarePrice,
-            advanceAmount: itemAdvance,
-            remainingAmount: itemRemaining,
-            butcher: req.body.butcher || null,
-            avatar: avatar || ''
-          })
-
-          const saved = await inquiry.save()
-          await Notification.create({
-            type: 'inquiry_created',
-            title: 'New inquiry',
-            message: `${saved.customerName} requested ${saved.animalName}`,
-            entityType: 'inquiry',
-            entityId: String(saved._id)
-          })
-          return saved
-        })
-
-        const savedInquiries = await Promise.all(inquiryPromises)
-        inquiries.push(...savedInquiries)
+        reservedAnimals.forEach(a => animalMap.set(String(a._id), a))
       } catch (err) {
         // Generic rollback on unexpected error
         if (reservedAnimals.length > 0) {
@@ -465,6 +400,73 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         throw err
       }
     }
+
+    // Now process ALL items (livestock + meat) to create inquiries
+    const totalItemsInBulk = items.length
+    const totalProductSubtotal = items.reduce((sum, item) => sum + (parsePrice(item.price) * (item.quantity || 1)), 0)
+    const bulkAnimalCarePrice = animalCare ? (totalItemsInBulk * 100) : 0 // Rs. 100 per item if care enabled
+    const bulkGrandTotal = totalProductSubtotal + bulkAnimalCarePrice
+    
+    const inquiryPromises = items.map(async (item) => {
+      const parsedPrice = parsePrice(item.price)
+      const qty = item.quantity || 1
+      const itemSubtotal = parsedPrice * qty
+      
+      const itemAnimalCarePrice = animalCare ? 100 : 0
+      const itemTotalWithCare = itemSubtotal + itemAnimalCarePrice
+      
+      // Calculate individual advance (approx 20%)
+      const itemAdvance = Math.round(itemTotalWithCare * 0.20)
+      const itemRemaining = itemTotalWithCare - itemAdvance
+
+      const userId = String(req.user?.id || '')
+      const animalData = animalMap.get(String(item?._id || item?.id || ''))
+
+      const inquiry = new Inquiry({
+        guestUserId: req.guestUserId || '',
+        userId,
+        orderGroupId,
+        inquiryId: generateInquiryId(),
+        customerName,
+        phone,
+        email: email || '',
+        animalName: item.name || item.animalName || 'Unknown',
+        animalTag: item.tagId || item.animalTag || item._id || '',
+        animalId: item._id || item.id || '',
+        breed: item.breed || '',
+        category: animalData?.category || item.category || '',
+        weight: item.weight || '',
+        price: parsedPrice,
+        quantity: qty,
+        totalAmount: itemTotalWithCare,
+        deliveryAddress: deliveryAddress || '',
+        city: city || '',
+        deliveryDate: deliveryDate || '',
+        paymentMethod: paymentMethod || 'whatsapp',
+        orderSource: orderSource || 'cart',
+        status: 'Pending',
+        notes: notes || '',
+        animalCare: animalCare || false,
+        animalCarePrice: itemAnimalCarePrice,
+        advanceAmount: itemAdvance,
+        remainingAmount: itemRemaining,
+        butcher: req.body.butcher || null,
+        avatar: avatar || ''
+      })
+
+      const saved = await inquiry.save()
+      await Notification.create({
+        type: 'inquiry_created',
+        title: 'New inquiry',
+        message: `${saved.customerName} requested ${saved.animalName}`,
+        entityType: 'inquiry',
+        entityId: String(saved._id)
+      })
+      return saved
+    })
+
+    const savedInquiries = await Promise.all(inquiryPromises)
+    inquiries.push(...savedInquiries)
 
     // ── Record user activity and associate email with session ──
     const cleanEmail = normalize(email).toLowerCase()
