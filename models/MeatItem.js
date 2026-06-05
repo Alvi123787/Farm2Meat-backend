@@ -1,9 +1,22 @@
 // models/MeatItem.js
 
 import mongoose from 'mongoose'
+import Counter from './Counter.js'
 
 const meatItemSchema = new mongoose.Schema(
   {
+    meatid: {
+      type: String,
+      unique: true
+    },
+    item_type_id: {
+      type: Number,
+      default: 2
+    },
+    type: {
+      type: String,
+      default: 'meat'
+    },
     name: {
       type: String,
       required: [true, 'Item name is required'],
@@ -80,6 +93,23 @@ meatItemSchema.virtual('formattedPrice').get(function () {
 meatItemSchema.virtual('priceLabel').get(function () {
   const unitMap = { kg: '/kg', '500g': '/500g', piece: '/piece' }
   return `Rs. ${this.price.toLocaleString('en-PK')} ${unitMap[this.unit] || '/kg'}`
+})
+
+// ── Pre-save hook for meatid ──────────────────────
+meatItemSchema.pre('save', async function (next) {
+  if (this.isNew) {
+    try {
+      const counter = await Counter.findOneAndUpdate(
+        { id: 'meatid' },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      )
+      this.meatid = `MEA-${counter.seq.toString().padStart(3, '0')}`
+    } catch (error) {
+      return next(error)
+    }
+  }
+  next()
 })
 
 const MeatItem = mongoose.model('MeatItem', meatItemSchema)

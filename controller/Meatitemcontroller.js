@@ -151,6 +151,7 @@ export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, sortOrder,
+    item_type_id,
   } = req.body
 
   const item = await MeatItem.create({
@@ -164,6 +165,7 @@ export const createItem = asyncHandler(async (req, res) => {
     isBestseller: isBestseller === true || isBestseller === 'true',
     isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
     sortOrder:    Number(sortOrder) || 0,
+    item_type_id: Number(item_type_id) || 2,
   })
 
   sendSuccess(res, item, 201)
