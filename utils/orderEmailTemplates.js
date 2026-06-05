@@ -240,11 +240,11 @@ export const buildOrderConfirmationEmailHtml = ({
  * Future support: Order Status Update Template
  */
 export const buildOrderStatusEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   orderId,
   status, // 'Shipped', 'Delivered', etc.
   customerName,
-  supportEmail = 'onlymeat@gmail.com',
+  supportEmail = 'rebalalvi123@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const safeName = escapeHtml(customerName)
