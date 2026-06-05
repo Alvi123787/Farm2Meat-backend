@@ -53,7 +53,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }))
 
 // ── Root Route (Health Check) ──
 app.get('/', (req, res) => {
-  res.json({ success: true, message: 'OnlyMeat API is running 🚀' })
+  res.json({ success: true, message: 'MeatByAlvi API is running 🚀' })
 })
 
 app.use(dbMiddleware) // Ensure DB is connected before any middleware that uses it

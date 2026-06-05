@@ -30,7 +30,7 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"OnlyMeat" <${user}>`,
+      from: `"MeatByAlvi" <${user}>`,
       to,
       subject,
       html,

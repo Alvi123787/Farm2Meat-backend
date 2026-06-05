@@ -250,7 +250,7 @@ router.post('/send-email', authMiddleware, adminMiddleware, async (req, res) => 
         try {
           await sendEmail({
             to: email,
-            subject: `${subject} - OnlyMeat`,
+            subject: `${subject} - MeatByAlvi`,
             html
           });
           console.log(`[EmailRoute] Sent to ${email}`);

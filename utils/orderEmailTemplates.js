@@ -56,14 +56,14 @@ const baseTemplate = ({ siteName, title, message, content, supportEmail, support
  * Order Confirmation Email Template
  */
 export const buildOrderConfirmationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   orderId,
   orderDate,
   paymentMethod,
   customer,
   items,
   pricing,
-  supportEmail = 'onlymeat@gmail.com',
+  supportEmail = 'rebalalvi123@gmail.com',
   supportPhone = '03089880479',
   ctaUrl,
   butcher, // new
@@ -331,7 +331,7 @@ export const buildNewAnimalNotificationHtml = ({
  * Admin: New Order Notification
  */
 export const buildAdminOrderNotificationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   orderId,
   customerName,
   items,
@@ -404,7 +404,7 @@ export const buildAdminUserRegistrationNotificationEmailHtml = ({
  * Sold Out Notification
  */
 export const buildSoldOutNotificationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   animalName,
   animalPrice,
   supportEmail,
@@ -438,7 +438,7 @@ export const buildSoldOutNotificationEmailHtml = ({
  * Multiple Items Sold Summary
  */
 export const buildAllItemsSoldNotificationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   supportEmail,
   supportPhone,
   websiteUrl = 'http://localhost:5173'
@@ -466,10 +466,10 @@ export const buildAllItemsSoldNotificationEmailHtml = ({
  * Admin: Custom Message Template
  */
 export const buildAdminCustomEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   title,
   message,
-  supportEmail = 'onlymeat@gmail.com',
+  supportEmail = 'rebalalvi123@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const content = `
@@ -480,7 +480,7 @@ export const buildAdminCustomEmailHtml = ({
   return baseTemplate({
     siteName,
     title: escapeHtml(title),
-    message: 'Important update from OnlyMeat',
+    message: 'Important update from MeatByAlvi',
     content,
     supportEmail,
     supportPhone
@@ -529,7 +529,7 @@ export const buildPromotionalEmailHtml = ({
  * Order Feedback / Review Request
  */
 export const buildOrderFeedbackEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   customerName,
   orderId,
   items,
@@ -594,7 +594,7 @@ export const buildWelcomeVerificationEmailHtml = ({
  * Expired Cart / Removed Animal Notification
  */
 export const buildExpiredCartRemovalEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   animalName,
   reason = 'it has been sold or your cart expired',
   supportEmail,
@@ -627,7 +627,7 @@ export const buildExpiredCartRemovalEmailHtml = ({
  * Password Reset Template
  */
 export const buildPasswordResetEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   customerName,
   resetUrl,
   supportEmail,

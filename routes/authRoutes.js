@@ -68,7 +68,7 @@ const sendVerificationEmail = async (email, verificationToken) => {
   })
   await sendEmail({
     to: email,
-    subject: 'Verify your OnlyMeat account',
+    subject: 'Verify your MeatByAlvi account',
     html
   })
 }

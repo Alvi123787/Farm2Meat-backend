@@ -1,8 +1,8 @@
 {
-  "name": "onlymeat",
+  "name": "meatbyalvi",
   "version": "1.0.0",
   "type": "module",
-  "description": "OnlyMeat Backend",
+  "description": "MeatByAlvi Backend",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

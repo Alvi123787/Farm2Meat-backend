@@ -21,7 +21,7 @@ import {
 
 const router = express.Router()
 
-const getAdminEmail = () => process.env.ADMIN_EMAIL || 'onlymeat@gmail.com'
+const getAdminEmail = () => process.env.ADMIN_EMAIL || 'rebalalvi123@gmail.com'
 
 // ── Helper: Generate unique inquiry ID ──
 const generateInquiryId = () => {
