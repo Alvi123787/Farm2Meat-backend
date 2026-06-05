@@ -35,6 +35,10 @@ const buildFilter = (query) => {
     filter.isAvailable = query.isAvailable === 'true'
   }
 
+  if (query.showInHeader !== undefined) {
+    filter.showInHeader = query.showInHeader === 'true'
+  }
+
   if (query.search) {
     filter.$text = { $search: query.search }
   }
@@ -150,7 +154,7 @@ export const getItemById = asyncHandler(async (req, res) => {
 export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
-    description, imageUrl, isBestseller, isAvailable, sortOrder,
+    description, imageUrl, isBestseller, isAvailable, showInHeader, sortOrder,
     item_type_id,
   } = req.body
 
@@ -164,6 +168,7 @@ export const createItem = asyncHandler(async (req, res) => {
     imageUrl,
     isBestseller: isBestseller === true || isBestseller === 'true',
     isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
+    showInHeader: showInHeader === true || showInHeader === 'true',
     sortOrder:    Number(sortOrder) || 0,
     item_type_id: Number(item_type_id) || 2,
   })
@@ -179,7 +184,7 @@ export const createItem = asyncHandler(async (req, res) => {
 export const updateItem = asyncHandler(async (req, res) => {
   const allowed = [
     'name', 'category', 'badge', 'price', 'unit',
-    'description', 'imageUrl', 'isBestseller', 'isAvailable', 'sortOrder',
+    'description', 'imageUrl', 'isBestseller', 'isAvailable', 'showInHeader', 'sortOrder',
   ]
 
   // Only pick allowed fields from the body

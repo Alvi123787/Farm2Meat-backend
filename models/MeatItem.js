@@ -65,6 +65,10 @@ const meatItemSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    showInHeader: {
+      type: Boolean,
+      default: false,
+    },
     // Sort order for manual reordering (lower = first)
     sortOrder: {
       type: Number,
