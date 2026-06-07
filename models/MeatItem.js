@@ -101,19 +101,19 @@ meatItemSchema.virtual('priceLabel').get(function () {
 
 // ── Pre-save hook for meatid ──────────────────────
 meatItemSchema.pre('save', async function (next) {
-  if (this.isNew) {
-    try {
-      const counter = await Counter.findOneAndUpdate(
-        { id: 'meatid' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      )
-      this.meatid = `MEA-${counter.seq.toString().padStart(3, '0')}`
-    } catch (error) {
-      return next(error)
-    }
+  if (!this.isNew) return next()
+
+  try {
+    const counter = await Counter.findOneAndUpdate(
+      { id: 'meatid' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    )
+    this.meatid = `MEA-${counter.seq.toString().padStart(3, '0')}`
+    next()
+  } catch (error) {
+    next(error)
   }
-  next()
 })
 
 const MeatItem = mongoose.model('MeatItem', meatItemSchema)
