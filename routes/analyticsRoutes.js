@@ -433,4 +433,94 @@ router.get('/sales', async (req, res) => {
   }
 })
 
+// ── Meat-Specific Analytics Endpoints ──
+
+router.get('/meat-dashboard', async (req, res) => {
+  try {
+    const now = new Date()
+    const currentStart = startOfDay(addDays(now, -29)) // Last 30 days
+    const currentEnd = now
+
+    const [
+      totalMeatItems,
+      meatInquiries,
+      outOfStockMeat,
+      categoryStats
+    ] = await Promise.all([
+      MeatItem.countDocuments(),
+      Inquiry.find({ 
+        itemType: 'meat',
+        date: { $gte: currentStart, $lte: currentEnd }
+      }).lean(),
+      MeatItem.countDocuments({ isAvailable: false }),
+      MeatItem.aggregate([
+        { $group: { _id: '$category', count: { $sum: 1 } } }
+      ])
+    ])
+
+    const completedMeatOrders = meatInquiries.filter(i => ['Completed', 'Delivered'].includes(i.status))
+    const totalMeatRevenue = completedMeatOrders.reduce((sum, i) => sum + (i.totalAmount || 0), 0)
+    const totalMeatSold = completedMeatOrders.reduce((sum, i) => sum + (i.quantity || 0), 0)
+
+    // Recent 5 meat orders
+    const recentMeatOrders = await Inquiry.find({ itemType: 'meat' })
+      .sort({ date: -1 })
+      .limit(5)
+      .lean()
+
+    // 30-day revenue trend for meat items
+    const revenueTrend = await Inquiry.aggregate([
+      { 
+        $match: { 
+          itemType: 'meat',
+          status: { $in: ['Completed', 'Delivered'] },
+          date: { $gte: currentStart, $lte: currentEnd }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+          revenue: { $sum: '$totalAmount' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ])
+
+    // Fill missing dates in trend
+    const trendMap = new Map(revenueTrend.map(t => [t._id, t.revenue]))
+    const formattedTrend = []
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(currentStart)
+      d.setDate(d.getDate() + i)
+      const key = d.toISOString().split('T')[0]
+      formattedTrend.push({
+        date: key,
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        revenue: trendMap.get(key) || 0
+      })
+    }
+
+    // Low stock items (less than 5 units/kg if we had a stock field, but since we only have isAvailable, we'll list items where isAvailable is false)
+    const lowStockItems = await MeatItem.find({ isAvailable: false }).limit(5).lean()
+
+    res.json({
+      success: true,
+      stats: {
+        totalItems: totalMeatItems,
+        revenue: totalMeatRevenue,
+        unitsSold: totalMeatSold,
+        outOfStock: outOfStockMeat
+      },
+      categoryStats: categoryStats.map(c => ({ category: c._id, count: c.count })),
+      recentOrders: recentMeatOrders,
+      revenueTrend: formattedTrend,
+      lowStockItems,
+      updatedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Meat Dashboard Error:', error.message)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 export default router
