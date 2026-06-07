@@ -109,11 +109,14 @@ meatItemSchema.pre('save', async function (next) {
       { $inc: { seq: 1 } },
       { new: true, upsert: true }
     )
-    this.meatid = `MEA-${counter.seq.toString().padStart(3, '0')}`
-    next()
+    if (counter) {
+      this.meatid = `MEA-${counter.seq.toString().padStart(3, '0')}`
+    }
   } catch (error) {
-    next(error)
+    // Graceful fallback if Counter model fails
+    console.warn('⚠️ Counter model failed, meatid not generated:', error.message)
   }
+  next()
 })
 
 const MeatItem = mongoose.model('MeatItem', meatItemSchema)

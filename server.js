@@ -87,17 +87,26 @@ app.use((err, req, res, next) => {
     /^Invalid (image|video) type\.|^Only images and videos|^Invalid JSON/i.test(message)
 
   if (isClient) {
-    console.warn(`[${req.method} ${req.path}] ${message}`)
+    console.warn(`[${req.method} ${req.path}] Client error: ${message}`)
   } else {
-    console.error(err)
+    console.error(`🔥 SERVER ERROR [${req.method} ${req.path}]:`, err.stack || err)
   }
 
   if (code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ success: false, message: 'File too large (max 100MB per file)' })
   }
 
-  if (err.name === 'ValidationError' || err.name === 'CastError') {
-    return res.status(400).json({ success: false, message: err.message || 'Invalid request data' })
+  if (err.name === 'ValidationError') {
+    // Collect all mongoose validation errors
+    const messages = Object.values(err.errors).map(e => e.message)
+    return res.status(400).json({ 
+      success: false, 
+      message: messages.join(', ') || 'Validation failed' 
+    })
+  }
+
+  if (err.name === 'CastError') {
+    return res.status(400).json({ success: false, message: `Invalid ${err.path}: ${err.value}` })
   }
 
   if (err.code === 11000) {
@@ -117,7 +126,10 @@ app.use((err, req, res, next) => {
           ? 400
           : 500
 
-  return res.status(status >= 400 && status < 600 ? status : 400).json({ success: false, message })
+  return res.status(status >= 400 && status < 600 ? status : 400).json({ 
+    success: false, 
+    message: process.env.NODE_ENV === 'development' ? message : (isClient ? message : 'Internal server error')
+  })
 })
 
 // ── Server Start (Development Only) ──
