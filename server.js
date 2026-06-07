@@ -95,6 +95,19 @@ app.use((err, req, res, next) => {
   if (code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ success: false, message: 'File too large (max 100MB per file)' })
   }
+
+  if (err.name === 'ValidationError' || err.name === 'CastError') {
+    return res.status(400).json({ success: false, message: err.message || 'Invalid request data' })
+  }
+
+  if (err.code === 11000) {
+    const fields = Object.keys(err.keyValue || {}).join(', ')
+    return res.status(400).json({
+      success: false,
+      message: fields ? `${fields} already exists` : 'Duplicate field value entered'
+    })
+  }
+
   const status =
     typeof err.statusCode === 'number'
       ? err.statusCode
@@ -103,6 +116,7 @@ app.use((err, req, res, next) => {
         : isClient
           ? 400
           : 500
+
   return res.status(status >= 400 && status < 600 ? status : 400).json({ success: false, message })
 })
 
