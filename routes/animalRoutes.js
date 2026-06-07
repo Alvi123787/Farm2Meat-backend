@@ -222,6 +222,15 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     if (animalData.visibility !== undefined) animalData.visibility = String(animalData.visibility) === 'true'
     if (animalData.deliveryAvailable !== undefined) animalData.deliveryAvailable = String(animalData.deliveryAvailable) === 'true'
     if (animalData.negotiable !== undefined) animalData.negotiable = String(animalData.negotiable) === 'true'
+    if (animalData.isForMeat !== undefined) animalData.isForMeat = String(animalData.isForMeat) === 'true'
+
+    if (animalData.slaughterWeight !== undefined) {
+      if (animalData.slaughterWeight === '' || animalData.slaughterWeight === null) {
+        animalData.slaughterWeight = 0
+      } else {
+        animalData.slaughterWeight = parseFloat(animalData.slaughterWeight)
+      }
+    }
 
     if (!animalData.type) animalData.type = 'animal'
 
@@ -399,6 +408,15 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
     if (updateData.visibility !== undefined) updateData.visibility = String(updateData.visibility) === 'true'
     if (updateData.deliveryAvailable !== undefined) updateData.deliveryAvailable = String(updateData.deliveryAvailable) === 'true'
     if (updateData.negotiable !== undefined) updateData.negotiable = String(updateData.negotiable) === 'true'
+    if (updateData.isForMeat !== undefined) updateData.isForMeat = String(updateData.isForMeat) === 'true'
+
+    if (updateData.slaughterWeight !== undefined) {
+      if (updateData.slaughterWeight === '' || updateData.slaughterWeight === null) {
+        updateData.slaughterWeight = 0
+      } else {
+        updateData.slaughterWeight = parseFloat(updateData.slaughterWeight)
+      }
+    }
 
     const updatedAnimal = await Animal.findByIdAndUpdate(
       req.params.id,
