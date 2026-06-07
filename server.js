@@ -84,6 +84,9 @@ app.use((err, req, res, next) => {
   const code = err.code
   const isClient =
     code === 'LIMIT_FILE_SIZE' ||
+    err.name === 'ValidationError' ||
+    err.name === 'CastError' ||
+    err.code === 11000 ||
     /^Invalid (image|video) type\.|^Only images and videos|^Invalid JSON/i.test(message)
 
   if (isClient) {
@@ -98,7 +101,7 @@ app.use((err, req, res, next) => {
 
   if (err.name === 'ValidationError') {
     // Collect all mongoose validation errors
-    const messages = Object.values(err.errors).map(e => e.message)
+    const messages = err.errors ? Object.values(err.errors).map(e => e.message) : [err.message]
     return res.status(400).json({ 
       success: false, 
       message: messages.join(', ') || 'Validation failed' 

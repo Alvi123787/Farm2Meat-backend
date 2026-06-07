@@ -152,28 +152,44 @@ export const getItemById = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 export const createItem = asyncHandler(async (req, res) => {
+  console.log('📦 Create Meat Item request received:', req.body)
+
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, showInHeader, sortOrder,
     item_type_id,
   } = req.body
 
-  const item = await MeatItem.create({
-    name,
-    category,
-    badge,
-    price: Number(price),
-    unit,
-    description,
-    imageUrl,
-    isBestseller: isBestseller === true || isBestseller === 'true',
-    isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
-    showInHeader: showInHeader === true || showInHeader === 'true',
-    sortOrder:    Number(sortOrder) || 0,
-    item_type_id: Number(item_type_id) || 2,
-  })
+  if (!MeatItem) {
+    console.error('❌ MeatItem model is undefined in controller!')
+    throw new Error('Server configuration error: MeatItem model not found')
+  }
 
-  sendSuccess(res, item, 201)
+  try {
+    const itemData = {
+      name,
+      category,
+      badge,
+      price: Number(price),
+      unit,
+      description,
+      imageUrl,
+      isBestseller: isBestseller === true || isBestseller === 'true',
+      isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
+      showInHeader: showInHeader === true || showInHeader === 'true',
+      sortOrder:    Number(sortOrder) || 0,
+      item_type_id: Number(item_type_id) || 2,
+    }
+
+    console.log('🛠️ Attempting to create MeatItem with data:', itemData)
+    const item = await MeatItem.create(itemData)
+    console.log('✅ MeatItem created successfully:', item._id)
+
+    sendSuccess(res, item, 201)
+  } catch (error) {
+    console.error('❌ Error in MeatItem.create:', error)
+    throw error // Re-throw to be caught by asyncHandler and global error handler
+  }
 })
 
 /**

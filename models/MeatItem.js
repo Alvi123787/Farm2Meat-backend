@@ -119,6 +119,6 @@ meatItemSchema.pre('save', async function (next) {
   next()
 })
 
-const MeatItem = mongoose.model('MeatItem', meatItemSchema)
+const MeatItem = mongoose.models.MeatItem || mongoose.model('MeatItem', meatItemSchema)
 
 export default MeatItem
