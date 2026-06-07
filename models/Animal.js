@@ -1,18 +1,9 @@
 import mongoose from 'mongoose'
 import slugify from 'slugify'
-import Counter from './Counter.js'
 
 const animalSchema = new mongoose.Schema({
 
   // ── Basic Information ──
-  animalid: {
-    type: String,
-    unique: true
-  },
-  item_type_id: {
-    type: Number,
-    default: 1
-  },
   name: {
     type: String,
     required: [true, 'Animal name is required'],
@@ -20,8 +11,8 @@ const animalSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['animal', 'meat'],
-    default: 'animal'
+    enum: ['livestock', 'animal'],
+    default: 'livestock'
   },
   category: {
     type: String,
@@ -204,21 +195,8 @@ const animalSchema = new mongoose.Schema({
 
 // ── Middlewares ──
 
-// Auto-generate animalid and slug before save
+// Auto-generate slug before save
 animalSchema.pre('save', async function (next) {
-  if (this.isNew) {
-    try {
-      const counter = await Counter.findOneAndUpdate(
-        { id: 'animalid' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      )
-      this.animalid = `ANI-${counter.seq.toString().padStart(3, '0')}`
-    } catch (error) {
-      return next(error)
-    }
-  }
-
   if (this.isModified('name')) {
     this.slug = slugify(this.name, { lower: true, strict: true })
   }

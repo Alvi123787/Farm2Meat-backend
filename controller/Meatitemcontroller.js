@@ -157,7 +157,6 @@ export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, showInHeader, sortOrder,
-    item_type_id,
   } = req.body
 
   if (!MeatItem) {
@@ -178,7 +177,7 @@ export const createItem = asyncHandler(async (req, res) => {
       isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
       showInHeader: showInHeader === true || showInHeader === 'true',
       sortOrder:    Number(sortOrder) || 0,
-      item_type_id: Number(item_type_id) || 2,
+      type:         'meat', // Always set to meat
     }
 
     console.log('🛠️ Attempting to create MeatItem with data:', itemData)

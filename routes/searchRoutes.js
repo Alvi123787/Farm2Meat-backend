@@ -27,13 +27,12 @@ router.get('/', async (req, res) => {
           { name: rx },
           { breed: rx },
           { category: rx },
-          { city: rx },
-          { animalid: rx }
+          { city: rx }
         ]
       })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select({ name: 1, breed: 1, city: 1, status: 1, price: 1, createdAt: 1, animalid: 1 })
+        .select({ name: 1, breed: 1, city: 1, status: 1, price: 1, createdAt: 1 })
         .lean(),
       Inquiry.find({
         $or: [
@@ -52,13 +51,12 @@ router.get('/', async (req, res) => {
       MeatItem.find({
         $or: [
           { name: rx },
-          { category: rx },
-          { meatid: rx }
+          { category: rx }
         ]
       })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select({ name: 1, category: 1, price: 1, createdAt: 1, meatid: 1 })
+        .select({ name: 1, category: 1, price: 1, createdAt: 1 })
         .lean()
     ])
 

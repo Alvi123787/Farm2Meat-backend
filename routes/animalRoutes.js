@@ -232,7 +232,10 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
       }
     }
 
-    if (!animalData.type) animalData.type = 'animal'
+    // Ensure type is livestock
+    animalData.type = 'livestock'
+    delete animalData.item_type_id
+    delete animalData.animalid
 
     const animal = new Animal(animalData)
     await animal.save()
@@ -375,13 +378,16 @@ router.put('/:id', authMiddleware, adminMiddleware, upload.fields([
 
     updateData.videos = finalVideos
 
-    // Clean up non-schema fields
+    // Clean up non-schema fields & protect type system
     delete updateData.urlImages
     delete updateData.urlVideos
     delete updateData.keepImages
     delete updateData.keepVideos
     delete updateData.removedImages
     delete updateData.removedVideos
+    delete updateData.type
+    delete updateData.item_type_id
+    delete updateData.animalid
 
     // Rich Description Sanitization
     if (updateData.fullDescription) {

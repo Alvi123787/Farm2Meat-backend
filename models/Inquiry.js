@@ -42,11 +42,6 @@ const inquirySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  animalTag: {
-    type: String,
-    default: '',
-    trim: true
-  },
   animalId: {
     type: String,
     default: ''
