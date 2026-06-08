@@ -1,6 +1,7 @@
 import express from 'express'
 import Inquiry from '../models/Inquiry.js'
 import Animal from '../models/Animal.js'
+import MeatItem from '../models/MeatItem.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js'
 import { 
   getGA4Overview, 
