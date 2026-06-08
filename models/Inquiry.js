@@ -46,6 +46,11 @@ const inquirySchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  itemType: {
+    type: String,
+    enum: ['livestock', 'meat'],
+    default: 'livestock'
+  },
   breed: {
     type: String,
     default: '',

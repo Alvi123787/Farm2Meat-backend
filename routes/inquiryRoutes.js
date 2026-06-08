@@ -147,6 +147,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       email: email || '',
       animalName,
       animalId: animalId || '',
+      itemType: isMeat ? 'meat' : 'livestock',
       breed: breed || '',
       category,
       weight: weight || '',

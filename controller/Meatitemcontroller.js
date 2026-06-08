@@ -157,7 +157,7 @@ export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, showInHeader, sortOrder,
-    stock, expirationDate,
+    stock, expirationDate, titleTop, titleBottom,
   } = req.body
 
   if (!MeatItem) {
@@ -177,6 +177,8 @@ export const createItem = asyncHandler(async (req, res) => {
       isBestseller: isBestseller === true || isBestseller === 'true',
       isAvailable:  isAvailable  === undefined ? true : (isAvailable === true || isAvailable === 'true'),
       showInHeader: showInHeader === true || showInHeader === 'true',
+      titleTop:     titleTop || '',
+      titleBottom:  titleBottom || '',
       sortOrder:    Number(sortOrder) || 0,
       stock:        Number(stock) || 0,
       expirationDate: expirationDate || null,
@@ -203,7 +205,7 @@ export const updateItem = asyncHandler(async (req, res) => {
   const allowed = [
     'name', 'category', 'badge', 'price', 'unit',
     'description', 'imageUrl', 'isBestseller', 'isAvailable', 'showInHeader', 'sortOrder',
-    'stock', 'expirationDate',
+    'stock', 'expirationDate', 'titleTop', 'titleBottom',
   ]
 
   // Only pick allowed fields from the body
