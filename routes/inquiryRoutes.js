@@ -619,6 +619,21 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/inquiries/meat — Fetch only meat inquiries
+router.get('/meat', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const inquiries = await Inquiry.find({ itemType: 'meat' }).sort({ createdAt: -1 })
+    res.status(200).json({
+      success: true,
+      count: inquiries.length,
+      data: inquiries
+    })
+  } catch (error) {
+    console.error('Error fetching meat inquiries:', error.message)
+    res.status(500).json({ success: false, message: 'Failed to fetch meat inquiries' })
+  }
+})
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/inquiries/all — Fetch all inquiries
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
