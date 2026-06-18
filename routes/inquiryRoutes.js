@@ -272,7 +272,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
 
         await sendEmail({
           to: cleanEmail,
-          subject: `Order Confirmation (${saved.inquiryId}) - OnlyMeat`,
+          subject: `Order Confirmation (${saved.inquiryId}) - MeatByAlvi`,
           html
         })
         emailSent = true
@@ -565,7 +565,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
 
         await sendEmail({
           to: cleanEmail,
-          subject: `Order Confirmation (${orderGroupId}) - OnlyMeat`,
+          subject: `Order Confirmation (${orderGroupId}) - MeatByAlvi`,
           html
         })
         emailSent = true

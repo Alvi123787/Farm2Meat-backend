@@ -325,7 +325,7 @@ router.post('/forgot-password', async (req, res) => {
 
     await sendEmail({
       to: user.email,
-      subject: 'Password Reset - OnlyMeat',
+      subject: 'Password Reset - MeatByAlvi',
       html: resetHtml
     })
 

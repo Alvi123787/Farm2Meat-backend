@@ -1,3 +1,5 @@
+import { getFrontendOrigin } from './config.js'
+
 const formatCurrency = (value) => {
   const n = Number(value || 0)
   const safe = Number.isFinite(n) ? n : 0
@@ -276,13 +278,13 @@ export const buildOrderStatusEmailHtml = ({
  * New Animal Notification Template
  */
 export const buildNewAnimalNotificationHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   animalName,
   animalPrice,
   animalDescription,
   animalImageUrl,
   animalUrl,
-  supportEmail = 'onlymeat@gmail.com',
+  supportEmail = 'support@meatbyalvi.com',
   supportPhone = '03089880479'
 }) => {
   const safeAnimalName = escapeHtml(animalName)
@@ -354,7 +356,7 @@ export const buildAdminOrderNotificationEmailHtml = ({
         <ul style="margin:0;padding-left:20px">${itemsList}</ul>
       </div>
       <div style="margin-top:24px;text-align:center">
-        <a href="http://localhost:5173/admin/orders" style="display:inline-block;background:#e65100;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">Manage Orders</a>
+        <a href="${getFrontendOrigin()}/admin/orders" style="display:inline-block;background:#e65100;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">Manage Orders</a>
       </div>
     </div>
   `
@@ -372,7 +374,7 @@ export const buildAdminOrderNotificationEmailHtml = ({
  * Admin: New User Registration Notification
  */
 export const buildAdminUserRegistrationNotificationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   userName,
   userEmail,
   registrationDate,
@@ -386,7 +388,7 @@ export const buildAdminUserRegistrationNotificationEmailHtml = ({
       <p><strong>Email:</strong> ${escapeHtml(userEmail)}</p>
       <p><strong>Date:</strong> ${escapeHtml(registrationDate)}</p>
       <div style="margin-top:24px;text-align:center">
-        <a href="http://localhost:5173/admin/users" style="display:inline-block;background:#0d47a1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">View Users</a>
+        <a href="${getFrontendOrigin()}/admin/users" style="display:inline-block;background:#0d47a1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">View Users</a>
       </div>
     </div>
   `
@@ -491,7 +493,7 @@ export const buildAdminCustomEmailHtml = ({
  * Promotional / Marketing Email
  */
 export const buildPromotionalEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   title,
   offerMessage,
   imageUrl,
@@ -562,7 +564,7 @@ export const buildOrderFeedbackEmailHtml = ({
  * Signup / resend — email verification link (time-limited on server)
  */
 export const buildWelcomeVerificationEmailHtml = ({
-  siteName = 'OnlyMeat',
+  siteName = 'MeatByAlvi',
   customerName,
   verificationUrl,
   supportEmail,
@@ -655,3 +657,4 @@ export const buildPasswordResetEmailHtml = ({
     supportPhone
   })
 }
+

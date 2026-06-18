@@ -169,7 +169,7 @@ router.post('/promote', authMiddleware, adminMiddleware, async (req, res) => {
       for (const email of emails) {
         await sendEmail({
           to: email,
-          subject: `${title} - OnlyMeat 📢`,
+          subject: `${title} - MeatByAlvi 📢`,
           html
         }).catch(err => console.error(`Failed to send promotional email to ${email}:`, err.message))
       }
