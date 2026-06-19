@@ -187,7 +187,7 @@ export const buildOrderConfirmationEmailHtml = ({
       </tr>
       <tr>
         <td style="padding:8px 0;color:#666;font-size:14px">Delivery</td>
-        <td style="padding:8px 0;color:#2e7d32;font-weight:700;text-align:right">FREE</td>
+        <td style="padding:8px 0;color:#222;font-weight:700;text-align:right">${formatCurrency(delivery || 49)}</td>
       </tr>
       <tr>
         <td style="padding:16px 0;color:#222;font-weight:800;font-size:18px;border-top:2px solid #8B4513">Total Amount</td>
@@ -338,18 +338,22 @@ export const buildAdminOrderNotificationEmailHtml = ({
   customerName,
   items,
   totalAmount,
+  deliveryCharge = 49,
   deliveryAddress,
   supportEmail,
   supportPhone
 }) => {
   const itemsList = (items || []).map(it => `<li>${escapeHtml(it.name)} (x${it.quantity})</li>`).join('')
+  const finalTotal = totalAmount + deliveryCharge
   
   const content = `
     <div style="background:#fff3e0;border:1px solid #ffe0b2;padding:20px;border-radius:12px">
       <h2 style="color:#e65100;margin:0 0 16px">New Order Received! 🛒</h2>
       <p><strong>Order ID:</strong> ${escapeHtml(orderId)}</p>
       <p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>
-      <p><strong>Total Amount:</strong> ${formatCurrency(totalAmount)}</p>
+      <p><strong>Items Total:</strong> ${formatCurrency(totalAmount)}</p>
+      <p><strong>Delivery Charge:</strong> ${formatCurrency(deliveryCharge)}</p>
+      <p><strong>Final Total:</strong> ${formatCurrency(finalTotal)}</p>
       <p><strong>Delivery Address:</strong> ${escapeHtml(deliveryAddress)}</p>
       <div style="margin-top:16px">
         <p><strong>Items:</strong></p>

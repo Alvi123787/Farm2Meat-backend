@@ -234,6 +234,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         customerName: saved.customerName,
         items: [{ name: saved.animalName, quantity: saved.quantity }],
         totalAmount: saved.totalAmount,
+        deliveryCharge: 49,
         deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`
       })
 
@@ -263,10 +264,10 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
             subtotal: saved.totalAmount
           }],
           pricing: {
-          subtotal: saved.totalAmount,
-          deliveryCharge: 50,
-          total: saved.totalAmount + 50
-        },
+            subtotal: saved.totalAmount,
+            deliveryCharge: 49,
+            total: saved.totalAmount + 49
+          },
           butcher: saved.butcher,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
@@ -529,6 +530,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         customerName,
         items: itemsForEmail,
         totalAmount: sub,
+        deliveryCharge: 49,
         deliveryAddress: `${deliveryAddress}, ${city}`
       })
 
@@ -561,7 +563,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             city
           },
           items: itemsForEmail,
-          pricing: { subtotal: sub, deliveryCharge: 50, total: sub + 50 },
+          pricing: { subtotal: sub, deliveryCharge: 49, total: sub + 49 },
           butcher: butcherDetails,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
