@@ -2,6 +2,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import Inquiry from '../models/Inquiry.js'
 import Animal from '../models/Animal.js'
+import MeatItem from '../models/MeatItem.js'
 import User from '../models/User.js'
 import GuestUser from '../models/GuestUser.js'
 import CartSession from '../models/CartSession.js'
@@ -435,6 +436,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         email: email || '',
         animalName: item.name || item.animalName || 'Unknown',
         animalId: item._id || item.id || '',
+        itemType: isItemMeat ? 'meat' : 'livestock', // FIX: set itemType!
         breed: item.breed || '',
         category: animalData?.category || item.category || '',
         weight: item.weight || '',
@@ -1037,6 +1039,87 @@ router.post('/bulk/delete', authMiddleware, adminMiddleware, async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Failed to delete inquiries'
+    })
+  }
+})
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/inquiries/fix-item-type — Fix existing inquiries without itemType (Admin only)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    console.log('🔧 Starting to fix itemType for existing inquiries...')
+    const inquiries = await Inquiry.find({
+      $or: [
+        { itemType: { $exists: false } },
+        { itemType: null },
+        { itemType: '' }
+      ]
+    })
+
+    console.log(`📋 Found ${inquiries.length} inquiries without itemType`)
+
+    let fixedCount = 0
+    let errorCount = 0
+
+    for (const inquiry of inquiries) {
+      try {
+        // First check if animalId exists in MeatItem collection
+        const isMeatItem = await MeatItem.exists({ _id: inquiry.animalId })
+        if (isMeatItem) {
+          inquiry.itemType = 'meat'
+          await inquiry.save()
+          fixedCount++
+          continue
+        }
+
+        // Then check if animalId exists in Animal collection
+        const isAnimal = await Animal.exists({ _id: inquiry.animalId })
+        if (isAnimal) {
+          inquiry.itemType = 'livestock'
+          await inquiry.save()
+          fixedCount++
+          continue
+        }
+
+        // If neither, check category/breed/name for clues
+        const nameLower = (inquiry.animalName || '').toLowerCase()
+        const categoryLower = (inquiry.category || '').toLowerCase()
+        const meatKeywords = ['mutton', 'beef', 'chicken', 'fish', 'meat', 'kg', '500g', 'piece']
+        const isProbablyMeat = meatKeywords.some(keyword => 
+          nameLower.includes(keyword) || categoryLower.includes(keyword)
+        )
+
+        if (isProbablyMeat) {
+          inquiry.itemType = 'meat'
+        } else {
+          inquiry.itemType = 'livestock'
+        }
+
+        await inquiry.save()
+        fixedCount++
+        console.log(`✅ Fixed inquiry ${inquiry.inquiryId} to itemType: ${inquiry.itemType}`)
+      } catch (err) {
+        console.error(`❌ Failed to fix inquiry ${inquiry.inquiryId}:`, err.message)
+        errorCount++
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Fixed ${fixedCount} inquiries, ${errorCount} errors`,
+      data: {
+        totalInquiries: inquiries.length,
+        fixedCount,
+        errorCount
+      }
+    })
+  } catch (error) {
+    console.error('Error fixing itemType:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fix itemType',
+      error: error.message
     })
   }
 })
