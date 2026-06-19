@@ -440,6 +440,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         breed: item.breed || '',
         category: animalData?.category || item.category || '',
         weight: item.weight || '',
+        unit: item.unit || '', // Add unit!
         price: parsedPrice,
         quantity: qty,
         totalAmount: itemTotalWithCare,
@@ -727,12 +728,14 @@ router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
         category: inquiry.category,
         breed: inquiry.breed,
         weight: inquiry.weight,
+        unit: inquiry.unit,
         price: inquiry.price,
         quantity: inquiry.quantity,
         totalAmount: inquiry.totalAmount,
         itemType: inquiry.itemType,
         animalCare: inquiry.animalCare,
-        animalCarePrice: inquiry.animalCarePrice
+        animalCarePrice: inquiry.animalCarePrice,
+        notes: inquiry.notes
       })
       orderGroups[groupId].totalAmount += inquiry.totalAmount
     })
@@ -813,6 +816,7 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
         category: inquiry.category,
         breed: inquiry.breed,
         weight: inquiry.weight,
+        unit: inquiry.unit,
         price: inquiry.price,
         quantity: inquiry.quantity,
         totalAmount: inquiry.totalAmount,
@@ -1048,7 +1052,7 @@ router.post('/bulk/delete', authMiddleware, adminMiddleware, async (req, res) =>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    console.log('🔧 Starting to fix itemType for existing inquiries...')
+    console.log('🔧 Starting to fix itemType (and unit) for existing inquiries...')
     const inquiries = await Inquiry.find({
       $or: [
         { itemType: { $exists: false } },
@@ -1065,11 +1069,13 @@ router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) 
     for (const inquiry of inquiries) {
       try {
         // First check if animalId exists in MeatItem collection
-        const isMeatItem = await MeatItem.exists({ _id: inquiry.animalId })
-        if (isMeatItem) {
+        const meatItem = await MeatItem.findOne({ _id: inquiry.animalId })
+        if (meatItem) {
           inquiry.itemType = 'meat'
+          inquiry.unit = meatItem.unit || ''
           await inquiry.save()
           fixedCount++
+          console.log(`✅ Fixed inquiry ${inquiry.inquiryId} (meat item, unit: ${inquiry.unit})`)
           continue
         }
 
@@ -1079,6 +1085,7 @@ router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) 
           inquiry.itemType = 'livestock'
           await inquiry.save()
           fixedCount++
+          console.log(`✅ Fixed inquiry ${inquiry.inquiryId} (livestock)`)
           continue
         }
 
@@ -1092,6 +1099,9 @@ router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) 
 
         if (isProbablyMeat) {
           inquiry.itemType = 'meat'
+          if (nameLower.includes('kg') || categoryLower.includes('kg')) inquiry.unit = 'kg'
+          else if (nameLower.includes('500g')) inquiry.unit = '500g'
+          else if (nameLower.includes('piece')) inquiry.unit = 'piece'
         } else {
           inquiry.itemType = 'livestock'
         }

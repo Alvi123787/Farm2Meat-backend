@@ -66,6 +66,11 @@ const inquirySchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  unit: {
+    type: String,
+    enum: ['kg', '500g', 'piece'],
+    default: ''
+  },
   price: {
     type: Number,
     required: true,
