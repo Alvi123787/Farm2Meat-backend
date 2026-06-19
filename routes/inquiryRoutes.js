@@ -634,12 +634,34 @@ router.get('/meat', authMiddleware, adminMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/inquiries/livestock — Fetch only livestock inquiries
+router.get('/livestock', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const inquiries = await Inquiry.find({ itemType: 'livestock' }).sort({ createdAt: -1 })
+    res.status(200).json({
+      success: true,
+      count: inquiries.length,
+      data: inquiries
+    })
+  } catch (error) {
+    console.error('Error fetching livestock inquiries:', error.message)
+    res.status(500).json({ success: false, message: 'Failed to fetch livestock inquiries' })
+  }
+})
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GET /api/inquiries/all — Fetch all inquiries
+// GET /api/inquiries/all — Fetch all inquiries (with optional domain filter)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find().sort({ createdAt: -1 })
+    const { domain } = req.query
+    let query = {}
+    if (domain === 'meat') {
+      query.itemType = 'meat'
+    } else if (domain === 'animal' || domain === 'livestock') {
+      query.itemType = 'livestock'
+    }
+    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 })
 
     res.status(200).json({
       success: true,
@@ -651,6 +673,164 @@ router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch inquiries'
+    })
+  }
+})
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/inquiries/grouped — Fetch orders grouped by orderGroupId (with domain filter)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { domain } = req.query
+    let itemType = null
+    if (domain === 'meat') {
+      itemType = 'meat'
+    } else if (domain === 'animal' || domain === 'livestock') {
+      itemType = 'livestock'
+    }
+
+    let query = {}
+    if (itemType) {
+      query.itemType = itemType
+    }
+
+    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 })
+
+    // Group inquiries by orderGroupId or inquiryId (if no orderGroupId)
+    const orderGroups = {}
+    inquiries.forEach(inquiry => {
+      const groupId = inquiry.orderGroupId || inquiry.inquiryId
+      if (!orderGroups[groupId]) {
+        // Create a new order group with the first inquiry
+        orderGroups[groupId] = {
+          orderId: groupId,
+          customerName: inquiry.customerName,
+          phone: inquiry.phone,
+          email: inquiry.email,
+          deliveryAddress: inquiry.deliveryAddress,
+          city: inquiry.city,
+          deliveryDate: inquiry.deliveryDate,
+          status: inquiry.status,
+          createdAt: inquiry.createdAt,
+          totalAmount: 0,
+          items: []
+        }
+      }
+      // Add the inquiry to the group
+      orderGroups[groupId].items.push({
+        id: inquiry._id,
+        inquiryId: inquiry.inquiryId,
+        animalName: inquiry.animalName,
+        category: inquiry.category,
+        breed: inquiry.breed,
+        weight: inquiry.weight,
+        price: inquiry.price,
+        quantity: inquiry.quantity,
+        totalAmount: inquiry.totalAmount,
+        itemType: inquiry.itemType,
+        animalCare: inquiry.animalCare,
+        animalCarePrice: inquiry.animalCarePrice
+      })
+      orderGroups[groupId].totalAmount += inquiry.totalAmount
+    })
+
+    // Convert to array and sort by createdAt descending
+    const orders = Object.values(orderGroups).sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    )
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders
+    })
+  } catch (error) {
+    console.error('Error fetching grouped orders:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch orders'
+    })
+  }
+})
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/inquiries/group/:orderGroupId — Fetch order details by orderGroupId (with domain filter)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { orderGroupId } = req.params
+    const { domain } = req.query
+    let itemType = null
+    if (domain === 'meat') {
+      itemType = 'meat'
+    } else if (domain === 'animal' || domain === 'livestock') {
+      itemType = 'livestock'
+    }
+
+    // Find all inquiries with this orderGroupId, or just the one with this inquiryId
+    let inquiries = await Inquiry.find({
+      $or: [
+        { orderGroupId: orderGroupId },
+        { inquiryId: orderGroupId }
+      ]
+    }).sort({ createdAt: -1 })
+
+    // Filter by itemType if domain is specified
+    if (itemType) {
+      inquiries = inquiries.filter(inq => inq.itemType === itemType)
+    }
+
+    if (!inquiries || inquiries.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      })
+    }
+
+    // Create the order object
+    const order = {
+      orderId: orderGroupId,
+      customerName: inquiries[0].customerName,
+      phone: inquiries[0].phone,
+      email: inquiries[0].email,
+      deliveryAddress: inquiries[0].deliveryAddress,
+      city: inquiries[0].city,
+      deliveryDate: inquiries[0].deliveryDate,
+      status: inquiries[0].status,
+      createdAt: inquiries[0].createdAt,
+      totalAmount: 0,
+      items: []
+    }
+
+    inquiries.forEach(inquiry => {
+      order.items.push({
+        id: inquiry._id,
+        inquiryId: inquiry.inquiryId,
+        animalName: inquiry.animalName,
+        category: inquiry.category,
+        breed: inquiry.breed,
+        weight: inquiry.weight,
+        price: inquiry.price,
+        quantity: inquiry.quantity,
+        totalAmount: inquiry.totalAmount,
+        itemType: inquiry.itemType,
+        animalCare: inquiry.animalCare,
+        animalCarePrice: inquiry.animalCarePrice,
+        notes: inquiry.notes
+      })
+      order.totalAmount += inquiry.totalAmount
+    })
+
+    res.status(200).json({
+      success: true,
+      data: order
+    })
+  } catch (error) {
+    console.error('Error fetching order details:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch order details'
     })
   }
 })
