@@ -41,6 +41,10 @@ app.use(cors({
 
 const jsonParser = express.json({ limit: '100mb' })
 app.use((req, res, next) => {
+  // Skip JSON parsing if Content-Type is multipart/form-data!
+  if (req.headers['content-type']?.startsWith('multipart/form-data')) {
+    return next()
+  }
   jsonParser(req, res, (err) => {
     if (!err) return next()
     const code = err.statusCode || err.status
