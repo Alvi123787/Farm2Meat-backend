@@ -163,6 +163,11 @@ router.post('/', authMiddleware, adminMiddleware, upload.fields([
     const hasUploadedImages = req.files?.images?.length > 0
     const hasUrlImages = urlImages.length > 0
 
+    console.log('hasUploadedImages:', hasUploadedImages)
+    console.log('hasUrlImages:', hasUrlImages)
+    console.log('urlImages:', urlImages)
+    console.log('req.files.images:', req.files?.images?.length)
+
     if (!hasUploadedImages && !hasUrlImages) {
       return res.status(400).json({
         success: false,
