@@ -152,6 +152,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       breed: breed || '',
       category,
       weight: weight || '',
+      ...(isMeat ? { unit: req.body.unit || '' } : {}), // Only set unit for meat items!
       price: parsedPrice,
       quantity: qty,
       totalAmount: finalTotal,
@@ -441,7 +442,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         breed: item.breed || '',
         category: animalData?.category || item.category || '',
         weight: item.weight || '',
-        unit: item.unit || '', // Add unit!
+        ...(isItemMeat ? { unit: item.unit || '' } : {}), // Only set unit for meat items!
         price: parsedPrice,
         quantity: qty,
         totalAmount: itemTotalWithCare,
