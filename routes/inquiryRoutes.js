@@ -100,6 +100,25 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     let animalCarePrice = 0
     let advanceAmount = 0
     let remainingAmount = 0
+    let unit = req.body.unit || ''
+    
+    // Check meat item availability and get unit if needed
+    if (isMeat && req.body.animalId) {
+      try {
+        const meatItem = await MeatItem.findById(req.body.animalId).lean()
+        if (meatItem) {
+          if (!meatItem.isAvailable) {
+            return res.status(409).json({
+              success: false,
+              message: `Sorry, ${meatItem.name} is currently unavailable. Please check back later.`
+            })
+          }
+          unit = meatItem.unit || 'kg'
+        }
+      } catch (e) {
+        console.warn('Could not fetch meat item:', e.message)
+      }
+    }
 
     if (animalId && !isMeat) {
       // ── ATOMIC AVAILABILITY CHECK & RESERVE ──
@@ -152,7 +171,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       breed: breed || '',
       category,
       weight: weight || '',
-      ...(isMeat ? { unit: req.body.unit || '' } : {}), // Only set unit for meat items!
+      ...(isMeat ? { unit: unit || 'kg' } : {}), // Only set unit for meat items, default to kg if needed
       price: parsedPrice,
       quantity: qty,
       totalAmount: finalTotal,
@@ -411,6 +430,32 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
     const bulkAnimalCarePrice = animalCare ? (totalItemsInBulk * 100) : 0 // Rs. 100 per item if care enabled
     const bulkGrandTotal = totalProductSubtotal + bulkAnimalCarePrice
     
+    // First, pre-fetch all meat items to check availability and get units
+    const meatItemIds = items
+      .filter(item => normalize(item.itemType) === 'meat')
+      .map(item => String(item?._id || item?.id || ''))
+      .filter(id => id)
+    
+    const meatItemMap = new Map()
+    if (meatItemIds.length > 0) {
+      try {
+        const meatItems = await MeatItem.find({ _id: { $in: meatItemIds } }).lean()
+        meatItems.forEach(mi => meatItemMap.set(String(mi._id), mi))
+        
+        // Check if any meat items are unavailable
+        const unavailableMeatItems = meatItems.filter(mi => !mi.isAvailable)
+        if (unavailableMeatItems.length > 0) {
+          const unavailableNames = unavailableMeatItems.map(mi => mi.name).join(', ')
+          return res.status(409).json({
+            success: false,
+            message: `Sorry, the following items are currently unavailable: ${unavailableNames}. Please check back later.`
+          })
+        }
+      } catch (e) {
+        console.warn('Could not fetch meat items:', e.message)
+      }
+    }
+    
     const inquiryPromises = items.map(async (item) => {
       const parsedPrice = parsePrice(item.price)
       const qty = item.quantity || 1
@@ -420,6 +465,18 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       const itemTotalWithCare = itemSubtotal + itemAnimalCarePrice
       
       const isItemMeat = normalize(item.itemType) === 'meat'
+
+      let unit = item.unit || ''
+      if (isItemMeat) {
+        const itemId = String(item?._id || item?.id || '')
+        if (!unit && itemId && meatItemMap.has(itemId)) {
+          unit = meatItemMap.get(itemId).unit || 'kg'
+        }
+        // If still no unit, default to kg
+        if (!unit) {
+          unit = 'kg'
+        }
+      }
 
       // Calculate individual advance (approx 20%) - Only for Livestock
       const itemAdvance = !isItemMeat ? Math.round(itemTotalWithCare * 0.20) : 0
@@ -442,7 +499,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         breed: item.breed || '',
         category: animalData?.category || item.category || '',
         weight: item.weight || '',
-        ...(isItemMeat ? { unit: item.unit || '' } : {}), // Only set unit for meat items!
+        ...(isItemMeat ? { unit: unit } : {}), // Only set unit for meat items!
         price: parsedPrice,
         quantity: qty,
         totalAmount: itemTotalWithCare,
