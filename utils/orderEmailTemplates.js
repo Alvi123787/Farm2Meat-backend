@@ -10,6 +10,20 @@ const formatCurrency = (value) => {
   return `Rs. ${formatted}`
 }
 
+const formatDateTime = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return ''
+  
+  return date.toLocaleString('en-PK', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 const escapeHtml = (s) =>
   String(s || '')
     .replace(/&/g, '&amp;')
@@ -67,12 +81,11 @@ export const buildOrderConfirmationEmailHtml = ({
   pricing,
   supportEmail = 'rebalalvi123@gmail.com',
   supportPhone = '03089880479',
-  ctaUrl,
   butcher, // new
   statusNote = 'Pending. Our team will contact you shortly to confirm your order.'
 }) => {
   const safeOrderId = escapeHtml(orderId)
-  const safeDate = escapeHtml(orderDate)
+  const safeDate = escapeHtml(formatDateTime(orderDate))
   const safePay = escapeHtml(paymentMethod || 'Cash on Delivery')
   const safeName = escapeHtml(customer?.name)
   const safeEmail = escapeHtml(customer?.email)
@@ -128,15 +141,6 @@ export const buildOrderConfirmationEmailHtml = ({
       </table>
     </div>
     `
-    : ''
-
-  const safeCtaUrl = escapeHtml(ctaUrl || '')
-  const cta = safeCtaUrl
-    ? `<div style="text-align:center;margin:30px 0">
-        <a href="${safeCtaUrl}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 24px;border-radius:12px;font-weight:800;box-shadow:0 4px 6px rgba(139,69,19,0.2)">
-          View Order Status
-        </a>
-      </div>`
     : ''
 
   const orderContent = `
@@ -222,7 +226,6 @@ export const buildOrderConfirmationEmailHtml = ({
 
     ${butcherSection}
 
-    ${cta}
     <p style="margin:24px 0 0;color:#8B4513;font-size:14px;font-weight:600;background:rgba(139,69,19,0.05);padding:12px;border-radius:8px;text-align:center">
       Order status: ${escapeHtml(statusNote)}
     </p>
