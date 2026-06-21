@@ -5,7 +5,6 @@ import { optionalAuthMiddleware } from '../middleware/authMiddleware.js'
 const router = express.Router()
 
 const getFeedbackEmail = () => process.env.FEEDBACK_EMAIL || 'farm2meat@gmail.com'
-const getSenderEmail = () => process.env.GMAIL_USER || process.env.ADMIN_EMAIL || ''
 
 const escapeHtml = (value = '') =>
   String(value)
@@ -30,14 +29,6 @@ router.post('/', optionalAuthMiddleware, async (req, res) => {
   }
 
   const to = getFeedbackEmail()
-  const from = getSenderEmail()
-
-  if (!from) {
-    return res.status(500).json({
-      success: false,
-      message: 'Email service is not configured.'
-    })
-  }
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#111;line-height:1.6;">
