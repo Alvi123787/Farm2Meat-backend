@@ -102,7 +102,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     let remainingAmount = 0
     let unit = req.body.unit || ''
     
-    // Check meat item availability and get unit if needed
+    // Check meat item availability and get unit and category if needed
     if (isMeat && req.body.animalId) {
       try {
         const meatItem = await MeatItem.findById(req.body.animalId).lean()
@@ -114,6 +114,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
             })
           }
           unit = meatItem.unit || 'kg'
+          category = meatItem.category || category
         }
       } catch (e) {
         console.warn('Could not fetch meat item:', e.message)
@@ -467,10 +468,14 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       const isItemMeat = normalize(item.itemType) === 'meat'
 
       let unit = item.unit || ''
+      let category = item.category || ''
+      
       if (isItemMeat) {
         const itemId = String(item?._id || item?.id || '')
-        if (!unit && itemId && meatItemMap.has(itemId)) {
-          unit = meatItemMap.get(itemId).unit || 'kg'
+        if (itemId && meatItemMap.has(itemId)) {
+          const meatItem = meatItemMap.get(itemId)
+          unit = meatItem.unit || 'kg'
+          category = meatItem.category || category
         }
         // If still no unit, default to kg
         if (!unit) {
@@ -484,6 +489,9 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
 
       const userId = String(req.user?.id || '')
       const animalData = animalMap.get(String(item?._id || item?.id || ''))
+      if (animalData) {
+        category = animalData.category || category
+      }
 
       const inquiry = new Inquiry({
         guestUserId: req.guestUserId || '',
@@ -497,7 +505,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         animalId: item._id || item.id || '',
         itemType: isItemMeat ? 'meat' : 'livestock', // FIX: set itemType!
         breed: item.breed || '',
-        category: animalData?.category || item.category || '',
+        category: category,
         weight: item.weight || '',
         ...(isItemMeat ? { unit: unit } : {}), // Only set unit for meat items!
         price: parsedPrice,
@@ -949,7 +957,7 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
 
     if (status === 'Completed') {
       // Automatically mark the animal as sold for single livestock items
-      if (inquiry.animalId) {
+      if (inquiry.animalId && inquiry.itemType === 'livestock') {
         // We only mark as sold if it's a single purchase livestock
         // (Meat/Multi-quantity products would typically not have a specific animalId or would be handled differently)
         const updatedAnimal = await Animal.findByIdAndUpdate(
