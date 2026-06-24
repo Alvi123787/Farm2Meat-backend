@@ -162,6 +162,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     const newInquiry = new Inquiry({
       guestUserId: req.guestUserId || '',
       userId,
+      userType: userId ? 'registered' : 'guest',
       inquiryId: generateInquiryId(),
       customerName,
       phone,
@@ -238,6 +239,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
 
     // No longer need a separate findByIdAndUpdate here since we did it atomically above
     
+    // Create admin notification
     await Notification.create({
       type: 'inquiry_created',
       title: 'New inquiry',
@@ -245,6 +247,18 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       entityType: 'inquiry',
       entityId: String(saved._id)
     })
+    
+    // Create user notification if userId exists
+    if (userId) {
+      await Notification.create({
+        userId,
+        type: 'order_placed',
+        title: 'Order Placed!',
+        message: `Your order for ${saved.animalName} has been placed successfully.`,
+        entityType: 'inquiry',
+        entityId: String(saved._id)
+      })
+    }
 
     // ── Send Confirmation Email ──
     let emailSent = false
@@ -496,6 +510,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       const inquiry = new Inquiry({
         guestUserId: req.guestUserId || '',
         userId,
+        userType: userId ? 'registered' : 'guest',
         orderGroupId,
         inquiryId: generateInquiryId(),
         customerName,
@@ -527,6 +542,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       })
 
       const saved = await inquiry.save()
+      // Create admin notification
       await Notification.create({
         type: 'inquiry_created',
         title: 'New inquiry',
@@ -534,6 +550,19 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         entityType: 'inquiry',
         entityId: String(saved._id)
       })
+      
+      // Create user notification if userId exists
+      if (userId) {
+        await Notification.create({
+          userId,
+          type: 'order_placed',
+          title: 'Order Placed!',
+          message: `Your order for ${saved.animalName} has been placed successfully.`,
+          entityType: 'inquiry',
+          entityId: String(saved._id)
+        })
+      }
+      
       return saved
     })
 
@@ -665,17 +694,36 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
   }
 })
 
+// Helper function to create userId query that matches both string and ObjectId
+const createUserIdQuery = (userId) => {
+  const query = { $or: [{ userId }] }
+  // If userId is a valid ObjectId string, also match ObjectId type
+  if (mongoose.Types.ObjectId.isValid(userId)) {
+    query.$or.push({ userId: new mongoose.Types.ObjectId(userId) })
+  }
+  return query
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/inquiries/me — Fetch orders for current user
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const userId = String(req.user?.id || '')
+    const userEmail = String(req.user?.email || '')
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' })
     }
 
-    const inquiries = await Inquiry.find({ userId }).sort({ createdAt: -1 })
+    // Find inquiries where userId matches OR email matches (in case some haven't been linked yet, though they should be)
+    const userQuery = {
+      $or: [
+        createUserIdQuery(userId),
+        { email: normalize(userEmail) }
+      ]
+    }
+
+    const inquiries = await Inquiry.find(userQuery).sort({ createdAt: -1 })
 
     res.status(200).json({
       success: true,
@@ -686,6 +734,86 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch your orders'
+    })
+  }
+})
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/inquiries/me/overview — Fetch user overview stats
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+router.get('/me/overview', authMiddleware, async (req, res) => {
+  try {
+    const userId = String(req.user?.id || '')
+    const userEmail = String(req.user?.email || '')
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now)
+    thirtyDaysAgo.setDate(now.getDate() - 30)
+
+    const userQuery = {
+      $or: [
+        createUserIdQuery(userId),
+        { email: normalize(userEmail) }
+      ]
+    }
+
+    const [
+      totalOrders,
+      totalRevenue,
+      recentOrders,
+      ordersLast30Days,
+      revenueLast30Days,
+      recommendedLivestock,
+      recommendedMeat
+    ] = await Promise.all([
+      Inquiry.countDocuments(userQuery),
+      Inquiry.aggregate([
+        { $match: { ...userQuery, status: { $in: ['Completed', 'Delivered'] } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      Inquiry.find(userQuery).sort({ createdAt: -1 }).limit(4),
+      Inquiry.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
+      Inquiry.aggregate([
+        { $match: { ...userQuery, status: { $in: ['Completed', 'Delivered'] }, createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      Animal.find({ visibility: true, status: { $in: ['available', 'new'] } }).limit(3).lean(),
+      MeatItem.find({ isAvailable: true }).limit(3).lean()
+    ])
+
+    const revenue = totalRevenue[0]?.total || 0
+    const revenue30d = revenueLast30Days[0]?.total || 0
+    const recommended = [...recommendedLivestock, ...recommendedMeat].slice(0, 3).map(item => {
+      const isMeat = item.category && item.category !== '' && !item.breed; // simple heuristic
+      return {
+        id: item._id,
+        name: item.name,
+        price: item.price,
+        image: item.imageUrl || item.images?.[0] || '',
+        tag: isMeat ? 'Meat' : 'Featured',
+        tagIcon: isMeat ? 'fa-solid fa-drumstick-bite' : 'fa-solid fa-star'
+      }
+    })
+
+    const stats = [
+      { id: 1, label: 'Total Orders', value: totalOrders.toString(), icon: 'fa-solid fa-box', delta: null },
+      { id: 2, label: 'Total Spent', value: `Rs. ${revenue.toLocaleString()}`, icon: 'fa-solid fa-indian-rupee-sign', delta: null },
+      { id: 3, label: 'Orders (Last 30 Days)', value: ordersLast30Days.toString(), icon: 'fa-solid fa-clock', delta: null },
+      { id: 4, label: 'Spent (Last 30 Days)', value: `Rs. ${revenue30d.toLocaleString()}`, icon: 'fa-solid fa-wallet', delta: null }
+    ]
+
+    res.status(200).json({
+      success: true,
+      data: { stats, recentOrders, recommended }
+    })
+  } catch (error) {
+    console.error('Error fetching user overview:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch overview'
     })
   }
 })

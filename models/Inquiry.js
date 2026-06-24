@@ -11,6 +11,11 @@ const inquirySchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  userType: {
+    type: String,
+    enum: ['guest', 'registered'],
+    default: 'guest'
+  },
   inquiryId: {
     type: String,
     required: true,

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 
 const notificationSchema = new mongoose.Schema({
+  userId: { type: String, default: '', trim: true },
+  guestUserId: { type: String, default: '', trim: true },
   type: { type: String, required: true, trim: true },
   title: { type: String, default: '', trim: true },
   message: { type: String, default: '', trim: true },

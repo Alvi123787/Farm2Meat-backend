@@ -42,7 +42,7 @@ const uploadToCloudinary = (fileBuffer, resourceType = 'auto', folder = 'animals
 // GET /api/animals - Get all available animals (with filtering)
 router.get('/', optionalAuthMiddleware, async (req, res) => {
   try {
-    const { category, breed, city, status, gender, minPrice, maxPrice, sort, page = 1, limit = 12 } = req.query
+    const { category, breed, city, status, gender, minPrice, maxPrice, sort, page = 1, limit = 12, listingType } = req.query
     const query = {}
 
     // Filtering
@@ -50,6 +50,7 @@ router.get('/', optionalAuthMiddleware, async (req, res) => {
     if (breed) query.breed = new RegExp(breed, 'i')
     if (city) query.city = new RegExp(city, 'i')
     if (gender) query.gender = gender
+    if (listingType) query.listingType = listingType
     
     // Only show available/visible animals to non-admins
     const isAdmin = req.user?.role === 'admin'

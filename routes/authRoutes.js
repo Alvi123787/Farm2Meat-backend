@@ -13,6 +13,7 @@ import {
 } from '../utils/orderEmailTemplates.js'
 
 import CartSession from '../models/CartSession.js'
+import Inquiry from '../models/Inquiry.js'
 
 import { getFrontendOrigin } from '../utils/config.js'
 
@@ -398,6 +399,17 @@ router.get('/verify-email/:token', async (req, res) => {
       userByToken.verificationTokenExpiresAt = null
       userByToken.verificationEmailLastSentAt = null
       await userByToken.save()
+
+      // Link all guest orders with this email to the new user
+      await Inquiry.updateMany(
+        { email: normalize(email), userType: 'guest' },
+        { 
+          $set: { 
+            userId: String(userByToken._id), 
+            userType: 'registered' 
+          } 
+        }
+      )
 
       return res.json({
         success: true,
