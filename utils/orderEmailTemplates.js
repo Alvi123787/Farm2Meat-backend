@@ -550,7 +550,7 @@ export const buildOrderFeedbackEmailHtml = ({
   const content = `
     <div style="padding:10px 0">
       <p style="font-size:16px;color:#333">Hi ${escapeHtml(customerName)},</p>
-      <p style="font-size:16px;color:#333">Thank you for your purchase of <strong>${escapeHtml(itemsText)}</strong> (Order #${escapeHtml(orderId)}). We hope you're happy with your new livestock!</p>
+      <p style="font-size:16px;color:#333">Thank you for your purchase of <strong>${escapeHtml(itemsText)}</strong> (Order #${escapeHtml(orderId)}). We hope you're happy with your order!</p>
       <p style="font-size:16px;color:#333;margin-top:20px">Please share your experience and help others make informed choices.</p>
       <div style="text-align:center;margin:40px 0">
         <a href="${escapeHtml(reviewUrl)}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 32px;border-radius:12px;font-weight:800">Leave a Review</a>
