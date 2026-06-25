@@ -62,16 +62,19 @@ const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000
 const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000
 
 const sendVerificationEmail = async (email, verificationToken) => {
+  console.log(`[EMAIL] Preparing verification email for ${email}`)
   const verificationLink = `${getFrontendOrigin()}/verify-email/${verificationToken}?email=${encodeURIComponent(email)}`
   const html = buildWelcomeVerificationEmailHtml({
     customerName: email.split('@')[0],
     verificationUrl: verificationLink
   })
+  console.log(`[EMAIL] Sending verification email to ${email} with link: ${verificationLink}`)
   await sendEmail({
     to: email,
     subject: 'Verify your MeatByAlvi account',
     html
   })
+  console.log(`[EMAIL] Verification email successfully sent to ${email}`)
 }
 
 /**
@@ -79,6 +82,7 @@ const sendVerificationEmail = async (email, verificationToken) => {
  * If email exists but unverified, refreshes password + token and resends.
  */
 router.post('/signup', async (req, res) => {
+  console.log(`[SIGNUP] New signup request received for email: ${normalizeEmail(req.body?.email)}`)
   try {
     const email = normalizeEmail(req.body?.email)
     const password = String(req.body?.password || '')
@@ -87,9 +91,11 @@ router.post('/signup', async (req, res) => {
     const city = String(req.body?.city || '').trim()
 
     if (!email || !isValidEmailFormat(email)) {
+      console.log(`[SIGNUP] Failed: Invalid email format for ${email}`)
       return res.status(400).json({ success: false, message: 'Invalid email format' })
     }
     if (!isValidPassword(password)) {
+      console.log(`[SIGNUP] Failed: Invalid password for ${email}`)
       return res.status(400).json({
         success: false,
         message: 'Password must be at least 6 characters and include at least one uppercase letter and one number'
@@ -106,6 +112,7 @@ router.post('/signup', async (req, res) => {
 
     if (existing) {
       if (existing.isVerified) {
+        console.log(`[SIGNUP] Existing verified user found for ${email}, returning generic message`)
         // Return generic message to prevent enumeration
         return res.status(201).json({
           success: true,
@@ -122,12 +129,14 @@ router.post('/signup', async (req, res) => {
             (now.getTime() - existing.verificationEmailLastSentAt.getTime())) /
             1000
         )
+        console.log(`[SIGNUP] Cooldown active for ${email}, wait ${waitSec}s`)
         return res.status(429).json({
           success: false,
           message: `Please wait ${waitSec}s before requesting another verification email.`
         })
       }
 
+      console.log(`[SIGNUP] Updating existing unverified user ${email}`)
       existing.fullName = fullName
       existing.phone = phone
       existing.city = city
@@ -140,10 +149,10 @@ router.post('/signup', async (req, res) => {
       try {
         await sendVerificationEmail(email, verificationToken)
       } catch (mailErr) {
+        console.error(`[SIGNUP] Failed to send verification email to ${email} (resend):`, mailErr?.message)
         if (mailErr?.code === 'MAIL_NOT_CONFIGURED') {
           return res.status(503).json({ success: false, message: 'Email service is not configured' })
         }
-        console.error('signup resend mail:', mailErr?.message)
         return res.status(502).json({
           success: false,
           message: 'Could not send verification email. Try again later.'
@@ -156,6 +165,7 @@ router.post('/signup', async (req, res) => {
       })
     }
 
+    console.log(`[SIGNUP] Creating new user ${email}`)
     const user = await User.create({
       email,
       fullName,
@@ -172,17 +182,18 @@ router.post('/signup', async (req, res) => {
     try {
       await sendVerificationEmail(email, verificationToken)
     } catch (mailErr) {
+      console.error(`[SIGNUP] Failed to send verification email to ${email}, deleting user:`, mailErr?.message)
       await User.deleteOne({ _id: user._id })
       if (mailErr?.code === 'MAIL_NOT_CONFIGURED') {
         return res.status(503).json({ success: false, message: 'Email service is not configured' })
       }
-      console.error('signup mail:', mailErr?.message)
       return res.status(502).json({
         success: false,
         message: 'Could not send verification email. Check the address or try again later.'
       })
     }
 
+    console.log(`[SIGNUP] User ${email} created successfully, sending admin notification`)
     const adminHtml = buildAdminUserRegistrationNotificationEmailHtml({
       userName: email.split('@')[0],
       userEmail: user.email,
@@ -200,36 +211,46 @@ router.post('/signup', async (req, res) => {
       message: 'Account created. Check your email and click the link to verify your account.'
     })
   } catch (error) {
+    console.error(`[SIGNUP] Unexpected error during signup:`, error)
     return res.status(500).json({ success: false, message: error.message || 'Signup failed' })
   }
 })
 
 router.post('/login', async (req, res) => {
+  console.log(`[LOGIN] Login attempt for email: ${req.body?.email}`)
   try {
     const email = String(req.body?.email || '').trim().toLowerCase()
     const password = String(req.body?.password || '')
 
     if (!isValidEmailFormat(email)) {
+      console.log(`[LOGIN] Failed: Invalid email format for ${email}`)
       return res.status(400).json({ success: false, message: "This email doesn't exist." })
     }
-    if (!password) return res.status(400).json({ success: false, message: 'Password is required' })
+    if (!password) {
+      console.log(`[LOGIN] Failed: No password provided for ${email}`)
+      return res.status(400).json({ success: false, message: 'Password is required' })
+    }
 
     const isAdminEmail = email === getAdminEmail().toLowerCase()
     if (isAdminEmail) {
       if (password === getAdminPassword()) {
+        console.log(`[LOGIN] Admin login successful for ${email}`)
         const token = buildToken({ sub: 'built-in-admin', email: getAdminEmail(), role: 'admin' })
         return res.json({ success: true, token, role: 'admin' })
       }
+      console.log(`[LOGIN] Failed: Incorrect password for admin ${email}`)
       // If password was wrong for the admin email
       return res.status(401).json({ success: false, message: 'Incorrect password for admin.' })
     }
 
     const user = await User.findOne({ email })
     if (!user) {
+      console.log(`[LOGIN] Failed: No user found for ${email}`)
       return res.status(401).json({ success: false, message: 'This email is not registered.' })
     }
 
     if (!user.isVerified) {
+      console.log(`[LOGIN] Failed: User ${email} is not verified`)
       return res.status(403).json({
         success: false,
         code: 'EMAIL_NOT_VERIFIED',
@@ -239,9 +260,11 @@ router.post('/login', async (req, res) => {
 
     const ok = await bcrypt.compare(password, user.passwordHash)
     if (!ok) {
+      console.log(`[LOGIN] Failed: Incorrect password for ${email}`)
       return res.status(401).json({ success: false, message: 'Incorrect password.' })
     }
 
+    console.log(`[LOGIN] Login successful for ${email}`)
     const token = buildToken({ sub: String(user._id), email: user.email, role: user.role })
 
     // Update cart session only if guestUserId is provided
@@ -256,6 +279,7 @@ router.post('/login', async (req, res) => {
 
     return res.json({ success: true, token, role: user.role })
   } catch (error) {
+    console.error(`[LOGIN] Unexpected error:`, error)
     return res.status(500).json({ success: false, message: error.message || 'Login failed' })
   }
 })
@@ -370,17 +394,22 @@ router.post('/reset-password/:token', async (req, res) => {
 })
 
 router.get('/verify-email/:token', async (req, res) => {
+  console.log(`[VERIFY-EMAIL] Verification attempt with token: ${req.params?.token?.substring(0, 10)}... and email: ${normalizeEmail(req.query?.email)}`)
   try {
     const token = String(req.params?.token || '')
     const email = normalizeEmail(req.query?.email)
     
-    if (!token) return res.status(400).json({ success: false, message: 'Invalid request' })
+    if (!token) {
+      console.log(`[VERIFY-EMAIL] Failed: No token provided`)
+      return res.status(400).json({ success: false, message: 'Invalid request' })
+    }
 
     const tokenHash = sha256(token)
     const userByToken = await User.findOne({ verificationTokenHash: tokenHash })
 
     if (userByToken) {
       if (userByToken.isVerified) {
+        console.log(`[VERIFY-EMAIL] Account already verified for user: ${userByToken.email}`)
         return res.json({
           success: true,
           message: 'Account already verified'
@@ -388,12 +417,14 @@ router.get('/verify-email/:token', async (req, res) => {
       }
 
       if (userByToken.verificationTokenExpiresAt && userByToken.verificationTokenExpiresAt.getTime() < Date.now()) {
+        console.log(`[VERIFY-EMAIL] Failed: Token expired for user: ${userByToken.email}`)
         return res.status(400).json({
           success: false,
           message: 'This link has expired. Request a new verification email.'
         })
       }
 
+      console.log(`[VERIFY-EMAIL] Verifying user: ${userByToken.email}`)
       userByToken.isVerified = true
       userByToken.verificationTokenHash = ''
       userByToken.verificationTokenExpiresAt = null
@@ -402,7 +433,7 @@ router.get('/verify-email/:token', async (req, res) => {
 
       // Link all guest orders with this email to the new user
       await Inquiry.updateMany(
-        { email: normalize(email), userType: 'guest' },
+        { email: normalizeEmail(email), userType: 'guest' },
         { 
           $set: { 
             userId: String(userByToken._id), 
@@ -411,6 +442,7 @@ router.get('/verify-email/:token', async (req, res) => {
         }
       )
 
+      console.log(`[VERIFY-EMAIL] Successfully verified user: ${userByToken.email}`)
       return res.json({
         success: true,
         message: 'Email verified successfully'
@@ -421,6 +453,7 @@ router.get('/verify-email/:token', async (req, res) => {
     if (email) {
       const userByEmail = await User.findOne({ email })
       if (userByEmail && userByEmail.isVerified) {
+        console.log(`[VERIFY-EMAIL] Account already verified (by email) for: ${email}`)
         return res.json({
           success: true,
           message: 'Account already verified'
@@ -428,24 +461,36 @@ router.get('/verify-email/:token', async (req, res) => {
       }
     }
 
+    console.log(`[VERIFY-EMAIL] Failed: Invalid or expired token for email: ${email}`)
     return res.status(400).json({
       success: false,
       message: 'Invalid or expired verification link'
     })
   } catch (error) {
+    console.error(`[VERIFY-EMAIL] Unexpected error:`, error)
     return res.status(500).json({ success: false, message: 'Something went wrong' })
   }
 })
 
 router.post('/resend-verification', async (req, res) => {
+  console.log(`[RESEND-VERIFICATION] Resend request received for email: ${req.body?.email}`)
   try {
     const email = String(req.body?.email || '').trim().toLowerCase()
-    if (!isValidEmailFormat(email)) return res.status(400).json({ success: false, message: 'Invalid email format' })
+    if (!isValidEmailFormat(email)) {
+      console.log(`[RESEND-VERIFICATION] Failed: Invalid email format for ${email}`)
+      return res.status(400).json({ success: false, message: 'Invalid email format' })
+    }
 
     const user = await User.findOne({ email })
     // Anti-enumeration: if user not found, return generic success
-    if (!user) return res.json({ success: true, message: 'Verification email sent. Please check your inbox.' })
-    if (user.isVerified) return res.json({ success: true, message: 'Account is already verified' })
+    if (!user) {
+      console.log(`[RESEND-VERIFICATION] No user found for ${email}, returning generic success`)
+      return res.json({ success: true, message: 'Verification email sent. Please check your inbox.' })
+    }
+    if (user.isVerified) {
+      console.log(`[RESEND-VERIFICATION] User ${email} is already verified`)
+      return res.json({ success: true, message: 'Account is already verified' })
+    }
 
     const now = new Date()
     if (
@@ -455,6 +500,7 @@ router.post('/resend-verification', async (req, res) => {
       const waitSec = Math.ceil(
         (VERIFICATION_RESEND_COOLDOWN_MS - (now.getTime() - user.verificationEmailLastSentAt.getTime())) / 1000
       )
+      console.log(`[RESEND-VERIFICATION] Cooldown active for ${email}, wait ${waitSec}s`)
       return res.status(429).json({
         success: false,
         message: `Please wait ${waitSec}s before requesting another verification email.`
@@ -473,22 +519,23 @@ router.post('/resend-verification', async (req, res) => {
     try {
       await sendVerificationEmail(email, verificationToken)
     } catch (mailErr) {
+      console.error(`[RESEND-VERIFICATION] Failed to send email to ${email}:`, mailErr?.message)
       if (mailErr?.code === 'MAIL_NOT_CONFIGURED') {
         return res.status(503).json({ success: false, message: 'Email service is not configured' })
       }
-      console.error('resend-verification mail:', mailErr?.message)
       return res.status(502).json({
         success: false,
         message: 'Could not send verification email. Try again later.'
       })
     }
 
+    console.log(`[RESEND-VERIFICATION] Verification email resent successfully to ${email}`)
     return res.json({
       success: true,
       message: 'Verification email sent. Please check your inbox.'
     })
   } catch (error) {
-    console.error('Failed to resend verification email:', error.message)
+    console.error(`[RESEND-VERIFICATION] Unexpected error:`, error)
     return res.status(500).json({ success: false, message: 'Something went wrong' })
   }
 })

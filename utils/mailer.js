@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer'
 
 const getGmailUser = () => process.env.GMAIL_USER || process.env.ADMIN_EMAIL || ''
 const getGmailPass = () => process.env.GMAIL_APP_PASSWORD || ''
+const getAdminEmail = () => process.env.ADMIN_EMAIL || ''
 
 /** Used by scheduled jobs to skip work when mail cannot send (avoids noisy per-recipient errors). */
 export const isEmailTransportConfigured = () => {
@@ -13,6 +14,7 @@ export const isEmailTransportConfigured = () => {
 export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   const user = getGmailUser()
   const pass = getGmailPass()
+  const adminEmail = getAdminEmail()
 
   if (!user || !pass) {
     console.error('MAIL_NOT_CONFIGURED: Email service credentials (GMAIL_USER, GMAIL_APP_PASSWORD) are not set in .env file.')
@@ -44,6 +46,25 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       code: error.code,
       stack: error.stack.split('\n').slice(0, 5).join('\n')
     })
+
+    // Try to send admin alert about the failure
+    if (adminEmail && adminEmail !== to) {
+      try {
+        await transporter.sendMail({
+          from: `"MeatByAlvi" <${user}>`,
+          to: adminEmail,
+          subject: `ALERT: Email Delivery Failure`,
+          html: `<p>Failed to send an email to <strong>${to}</strong>.</p>
+                 <p><strong>Subject:</strong> ${subject}</p>
+                 <p><strong>Error:</strong> ${error.message}</p>
+                 <pre style="background: #f5f5f5; padding: 10px;">${error.stack}</pre>`
+        })
+        console.log(`Admin alert sent to ${adminEmail} about email failure to ${to}`)
+      } catch (adminErr) {
+        console.error(`Failed to send admin alert:`, adminErr.message)
+      }
+    }
+
     throw error
   }
 }

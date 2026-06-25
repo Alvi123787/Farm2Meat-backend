@@ -294,7 +294,7 @@ export const buildNewAnimalNotificationHtml = ({
   const safePrice = formatCurrency(animalPrice)
   const safeDescription = escapeHtml(animalDescription || 'A beautiful new addition to our marketplace.')
   const safeAnimalUrl = escapeHtml(animalUrl)
-  const safeImageUrl = escapeHtml(animalImageUrl ? `http://localhost:5000${animalImageUrl}` : '')
+  const safeImageUrl = escapeHtml(animalImageUrl || '')
 
   const imageTag = safeImageUrl 
     ? `<div style="margin-bottom:20px;text-align:center">
@@ -418,8 +418,9 @@ export const buildSoldOutNotificationEmailHtml = ({
   animalPrice,
   supportEmail,
   supportPhone,
-  websiteUrl = 'http://localhost:5173'
+  websiteUrl
 }) => {
+  const finalWebsiteUrl = websiteUrl || getFrontendOrigin()
   const content = `
     <div style="padding:10px 0">
       <p style="font-size:16px;color:#333">We're sorry! The animal you were interested in has been sold.</p>
@@ -429,7 +430,7 @@ export const buildSoldOutNotificationEmailHtml = ({
       </div>
       <p style="color:#666">Don't worry, we have many other high-quality livestock available. Check them out before they are gone too!</p>
       <div style="text-align:center;margin:30px 0">
-        <a href="${websiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Available Animals</a>
+        <a href="${finalWebsiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Available Animals</a>
       </div>
     </div>
   `
@@ -450,14 +451,15 @@ export const buildAllItemsSoldNotificationEmailHtml = ({
   siteName = 'MeatByAlvi',
   supportEmail,
   supportPhone,
-  websiteUrl = 'http://localhost:5173'
+  websiteUrl
 }) => {
+  const finalWebsiteUrl = websiteUrl || getFrontendOrigin()
   const content = `
     <div style="padding:10px 0">
       <p style="font-size:16px;color:#333;line-height:1.6">All items you added to cart have been purchased by other customers.</p>
       <p style="color:#666">Don't worry, we have many other high-quality livestock available. Check them out before they are gone too!</p>
       <div style="text-align:center;margin:30px 0">
-        <a href="${websiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Available Animals</a>
+        <a href="${finalWebsiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Available Animals</a>
       </div>
     </div>
   `
@@ -505,10 +507,11 @@ export const buildPromotionalEmailHtml = ({
   offerMessage,
   imageUrl,
   ctaText = 'Shop Now',
-  ctaUrl = 'http://localhost:5173/shop',
+  ctaUrl,
   supportEmail,
   supportPhone
 }) => {
+  const finalCtaUrl = ctaUrl || `${getFrontendOrigin()}/shop`
   const imagePart = imageUrl 
     ? `<div style="margin-bottom:24px"><img src="${escapeHtml(imageUrl)}" style="width:100%;border-radius:12px;display:block"></div>`
     : ''
@@ -519,7 +522,7 @@ export const buildPromotionalEmailHtml = ({
       <div style="font-size:18px;color:#333;line-height:1.6;margin-bottom:30px">
         ${offerMessage}
       </div>
-      <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 40px;border-radius:50px;font-weight:800;font-size:18px;box-shadow:0 4px 15px rgba(139,69,19,0.3)">
+      <a href="${escapeHtml(finalCtaUrl)}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 40px;border-radius:50px;font-weight:800;font-size:18px;box-shadow:0 4px 15px rgba(139,69,19,0.3)">
         ${escapeHtml(ctaText)}
       </a>
     </div>
@@ -608,8 +611,9 @@ export const buildExpiredCartRemovalEmailHtml = ({
   reason = 'it has been sold or your cart expired',
   supportEmail,
   supportPhone,
-  websiteUrl = 'http://localhost:5173'
+  websiteUrl
 }) => {
+  const finalWebsiteUrl = websiteUrl || getFrontendOrigin()
   const content = `
     <div style="padding:10px 0">
       <p style="font-size:16px;color:#333">An item has been removed from your cart.</p>
@@ -618,7 +622,7 @@ export const buildExpiredCartRemovalEmailHtml = ({
       </div>
       <p style="color:#666">Don't miss out on other great options! Check our current inventory to find your next match.</p>
       <div style="text-align:center;margin:30px 0">
-        <a href="${websiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Other Animals</a>
+        <a href="${finalWebsiteUrl}/shop" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px;font-weight:800">View Other Animals</a>
       </div>
     </div>
   `
