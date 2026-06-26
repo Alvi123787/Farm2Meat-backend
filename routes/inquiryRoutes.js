@@ -1170,6 +1170,37 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) =>
           html: feedbackHtml
         }).catch(err => console.error('Failed to send feedback email:', err.message))
       }
+    } else if (status === 'Cancelled') {
+      // Unreserve the animal if it's a livestock order
+      if (inquiry.animalId && inquiry.itemType === 'livestock') {
+        await Animal.findByIdAndUpdate(
+          inquiry.animalId,
+          { status: 'available', visibility: true },
+          { returnDocument: 'after' }
+        )
+      }
+
+      await Notification.create({
+        type: 'inquiry_cancelled',
+        title: 'Order cancelled',
+        message: `Order ${inquiry.inquiryId} was cancelled`,
+        entityType: 'inquiry',
+        entityId: String(inquiry._id)
+      })
+
+      // Send cancellation email to customer
+      if (validateEmail(inquiry.email)) {
+        const statusHtml = buildOrderStatusEmailHtml({
+          orderId: inquiry.inquiryId,
+          status,
+          customerName: inquiry.customerName
+        })
+        await sendEmail({
+          to: inquiry.email,
+          subject: `Order Cancelled: ${inquiry.inquiryId}`,
+          html: statusHtml
+        }).catch(err => console.error('Failed to send cancellation email:', err.message))
+      }
     }
 
     res.status(200).json({

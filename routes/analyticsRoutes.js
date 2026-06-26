@@ -10,7 +10,10 @@ import {
   getGA4UsersOverTime, 
   getGA4PageViewsOverTime, 
   getGA4TopPages,
-  testGA4Connection
+  testGA4Connection,
+  getGA4TrafficSources,
+  getGA4DeviceTypes,
+  getGA4GeographicData
 } from '../utils/ga4.js'
 
 const router = express.Router()
@@ -24,8 +27,8 @@ router.get('/test-analytics', async (req, res) => {
       success: testResult.success,
       message: testResult.success 
         ? (testResult.isMockMode 
-            ? 'GA4 running in MOCK mode (credentials missing/incorrect)' 
-            : 'GA4 connection successful!') 
+          ? 'GA4 running in MOCK mode (credentials missing/incorrect)' 
+          : 'GA4 connection successful!') 
         : 'GA4 connection test failed',
       data: testResult.data,
       isMockMode: testResult.isMockMode,
@@ -44,6 +47,37 @@ router.get('/test-analytics', async (req, res) => {
 
 // Protected admin routes below
 router.use(authMiddleware, adminMiddleware)
+
+// ✅ NEW ENDPOINTS FOR ENHANCED ANALYTICS
+router.get('/traffic-sources', async (req, res) => {
+  try {
+    const data = await getGA4TrafficSources()
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('❌ Traffic Sources Error:', err)
+    res.status(500).json({ success: false, message: 'Failed to get traffic sources' })
+  }
+})
+
+router.get('/device-types', async (req, res) => {
+  try {
+    const data = await getGA4DeviceTypes()
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('❌ Device Types Error:', err)
+    res.status(500).json({ success: false, message: 'Failed to get device types' })
+  }
+})
+
+router.get('/geographic-data', async (req, res) => {
+  try {
+    const data = await getGA4GeographicData()
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error('❌ Geographic Data Error:', err)
+    res.status(500).json({ success: false, message: 'Failed to get geographic data' })
+  }
+})
 
 // ── GA4 User Analytics Endpoints ──
 
