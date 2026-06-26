@@ -9,11 +9,40 @@ import {
   getGA4Overview, 
   getGA4UsersOverTime, 
   getGA4PageViewsOverTime, 
-  getGA4TopPages 
+  getGA4TopPages,
+  testGA4Connection
 } from '../utils/ga4.js'
 
 const router = express.Router()
 
+// ✅ PUBLIC TEST ENDPOINT: No auth required for diagnostics
+router.get('/test-analytics', async (req, res) => {
+  try {
+    console.log('🔍 Running GA4 connection test...')
+    const testResult = await testGA4Connection()
+    res.json({
+      success: testResult.success,
+      message: testResult.success 
+        ? (testResult.isMockMode 
+            ? 'GA4 running in MOCK mode (credentials missing/incorrect)' 
+            : 'GA4 connection successful!') 
+        : 'GA4 connection test failed',
+      data: testResult.data,
+      isMockMode: testResult.isMockMode,
+      diagnostics: testResult.diagnostics,
+      error: testResult.error
+    })
+  } catch (err) {
+    console.error('❌ Test Analytics Endpoint Error:', err)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test GA4 connection',
+      error: err.message
+    })
+  }
+})
+
+// Protected admin routes below
 router.use(authMiddleware, adminMiddleware)
 
 // ── GA4 User Analytics Endpoints ──

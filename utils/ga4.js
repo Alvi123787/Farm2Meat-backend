@@ -1,7 +1,7 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data'
 
 /**
- * GA4 Data API Client Utility
+ * GA4 Data API Client Utility - Enhanced with Diagnostics
  * Uses Service Account Credentials from Environment Variables
  */
 
@@ -9,36 +9,67 @@ const propertyId = process.env.GA4_PROPERTY_ID
 const clientEmail = process.env.GA4_CLIENT_EMAIL
 let privateKey = process.env.GA4_PRIVATE_KEY
 
-// Robust Private Key Cleaning
+// Enhanced Private Key Cleaning and Validation
+const diagnostics = {
+  envVars: {
+    GA4_PROPERTY_ID: !!propertyId,
+    GA4_CLIENT_EMAIL: !!clientEmail,
+    GA4_PRIVATE_KEY: !!privateKey,
+    GA4_PRIVATE_KEY_HAS_BEGIN: false,
+    GA4_PRIVATE_KEY_HAS_END: false,
+    errors: []
+  },
+  clientInitialization: {
+    success: false,
+    error: null
+  }
+}
+
+// Diagnostics: Check and clean private key
 if (privateKey) {
   // 1. Remove surrounding quotes if they exist
   privateKey = privateKey.trim().replace(/^["'](.+)["']$/s, '$1')
   // 2. Replace literal \n string with actual newline characters
   privateKey = privateKey.replace(/\\n/g, '\n')
+  // Validate key structure
+  diagnostics.envVars.GA4_PRIVATE_KEY_HAS_BEGIN = privateKey.includes('-----BEGIN PRIVATE KEY-----')
+  diagnostics.envVars.GA4_PRIVATE_KEY_HAS_END = privateKey.includes('-----END PRIVATE KEY-----')
+} else {
+  diagnostics.envVars.errors.push('GA4_PRIVATE_KEY is missing or empty')
 }
 
-let analyticsDataClient
-let isMockMode = false
+// Diagnostics: Check all env vars
+if (!propertyId) diagnostics.envVars.errors.push('GA4_PROPERTY_ID is missing')
+if (!clientEmail) diagnostics.envVars.errors.push('GA4_CLIENT_EMAIL is missing')
 
-if (propertyId && clientEmail && privateKey && privateKey.includes('BEGIN PRIVATE KEY')) {
-  try {
+let analyticsDataClient = null
+let isMockMode = true
+
+// Initialize client with diagnostics
+try {
+  if (propertyId && clientEmail && privateKey && 
+      diagnostics.envVars.GA4_PRIVATE_KEY_HAS_BEGIN && 
+      diagnostics.envVars.GA4_PRIVATE_KEY_HAS_END) {
     analyticsDataClient = new BetaAnalyticsDataClient({
       credentials: {
         client_email: clientEmail,
         private_key: privateKey
       }
     })
-    console.log('✅ GA4 Analytics: Client initialized with cleaned private key.')
-  } catch (err) {
-    console.error('❌ GA4 Analytics: Initialization failed.', err.message)
-    isMockMode = true
+    isMockMode = false
+    diagnostics.clientInitialization.success = true
+    console.log('✅ GA4 Analytics: Client initialized successfully!')
+  } else {
+    console.warn('⚠️ GA4 Analytics: Invalid or missing credentials. Running in Mock Mode.')
+    console.warn('   Diagnostics:', JSON.stringify(diagnostics, null, 2))
   }
-} else {
-  console.warn('GA4 Analytics: Invalid or missing credentials. Running in Mock Mode.')
+} catch (err) {
+  console.error('❌ GA4 Analytics: Initialization failed!', err.message)
+  diagnostics.clientInitialization.error = err.message
   isMockMode = true
 }
 
-// ── MOCK DATA GENERATORS ──
+// ── MOCK DATA GENERATORS (Fallback when GA4 isn't configured) ──
 const getMockOverview = () => ({
   totalUsers: '12842',
   pageViews: '85420',
@@ -72,6 +103,56 @@ const getMockTopPages = () => [
 ]
 
 // ── EXPORTED FUNCTIONS ──
+
+// Diagnostic function to test full pipeline
+export const testGA4Connection = async () => {
+  const testResult = {
+    success: false,
+    isMockMode,
+    diagnostics,
+    data: null,
+    error: null
+  }
+
+  try {
+    if (isMockMode) {
+      testResult.data = getMockOverview()
+      testResult.success = true
+      return testResult
+    }
+
+    // Test basic GA4 connection by fetching simple overview
+    const [response] = await analyticsDataClient.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+      metrics: [
+        { name: 'totalUsers' },
+        { name: 'screenPageViews' },
+        { name: 'sessions' },
+        { name: 'activeUsers' }
+      ]
+    })
+
+    const values = response.rows?.[0]?.metricValues || []
+    testResult.data = {
+      totalUsers: values[0]?.value || '0',
+      pageViews: values[1]?.value || '0',
+      sessions: values[2]?.value || '0',
+      activeUsers: values[3]?.value || '0',
+      isMock: false
+    }
+    testResult.success = true
+    console.log('✅ GA4 Test Connection: Successfully fetched data!')
+    return testResult
+  } catch (err) {
+    console.error('❌ GA4 Test Connection: Failed!', err.message)
+    testResult.error = err.message
+    // Fallback to mock on error
+    testResult.data = getMockOverview()
+    testResult.isMockMode = true
+    return testResult
+  }
+}
 
 export const getGA4Overview = async () => {
   if (isMockMode || !analyticsDataClient) return getMockOverview()
