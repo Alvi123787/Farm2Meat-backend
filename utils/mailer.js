@@ -16,6 +16,8 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   const pass = getGmailPass()
   const adminEmail = getAdminEmail()
 
+  console.log(`[MAILER] sendEmail called with:`, { to, subject, user: user ? '***' : 'NOT SET', pass: pass ? '***' : 'NOT SET' })
+
   if (!user || !pass) {
     console.error('MAIL_NOT_CONFIGURED: Email service credentials (GMAIL_USER, GMAIL_APP_PASSWORD) are not set in .env file.')
     const err = new Error('Email service is not configured.')

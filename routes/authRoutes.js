@@ -63,12 +63,14 @@ const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000
 
 const sendVerificationEmail = async (email, verificationToken) => {
   console.log(`[EMAIL] Preparing verification email for ${email}`)
+  console.log(`[EMAIL] Checking getFrontendOrigin:`, getFrontendOrigin())
   const verificationLink = `${getFrontendOrigin()}/verify-email/${verificationToken}?email=${encodeURIComponent(email)}`
   const html = buildWelcomeVerificationEmailHtml({
     customerName: email.split('@')[0],
     verificationUrl: verificationLink
   })
   console.log(`[EMAIL] Sending verification email to ${email} with link: ${verificationLink}`)
+  console.log(`[EMAIL] Checking sendEmail params:`, { to: email, subject: 'Verify your MeatByAlvi account' })
   await sendEmail({
     to: email,
     subject: 'Verify your MeatByAlvi account',
