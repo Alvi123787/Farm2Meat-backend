@@ -38,11 +38,6 @@ const animalSchema = new mongoose.Schema({
     enum: ['months', 'years'],
     default: 'months'
   },
-  weight: {
-    type: String,
-    required: [true, 'Weight is required'],
-    trim: true
-  },
 
   // ── Pricing & Status ──
   purchasePrice: {
