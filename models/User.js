@@ -10,10 +10,7 @@ const userSchema = new mongoose.Schema({
   resetTokenHash: { type: String, default: '', index: true },
   resetTokenExpiresAt: { type: Date, default: null },
   passwordResetLastSentAt: { type: Date, default: null },
-  isVerified: { type: Boolean, default: false },
-  verificationTokenHash: { type: String, default: '', index: true },
-  verificationTokenExpiresAt: { type: Date, default: null },
-  verificationEmailLastSentAt: { type: Date, default: null },
+  isVerified: { type: Boolean, default: true },
   lastActivity: { type: Date, default: Date.now },
   isSubscribed: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }

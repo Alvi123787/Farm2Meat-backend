@@ -570,37 +570,7 @@ export const buildOrderFeedbackEmailHtml = ({
   })
 }
 
-/**
- * Signup / resend — email verification link (time-limited on server)
- */
-export const buildWelcomeVerificationEmailHtml = ({
-  siteName = 'MeatByAlvi',
-  customerName,
-  verificationUrl,
-  supportEmail,
-  supportPhone
-}) => {
-  const content = `
-    <div style="padding:10px 0">
-      <p style="font-size:16px;color:#333">Hi ${escapeHtml(customerName)},</p>
-      <p style="font-size:18px;color:#333;font-weight:700">Welcome to ${escapeHtml(siteName)}!</p>
-      <p style="font-size:16px;color:#333">Thanks for registering.</p>
-      <p style="font-size:16px;color:#333;margin-top:12px">Click the button below to verify your account and start using our platform.</p>
-      <div style="text-align:center;margin:40px 0">
-        <a href="${escapeHtml(verificationUrl)}" style="display:inline-block;background:#8B4513;color:#fff;text-decoration:none;padding:16px 32px;border-radius:12px;font-weight:800">Verify Your Account</a>
-      </div>
-      <p style="font-size:14px;color:#666">This link expires in <strong>24 hours</strong> for your security. If you did not create an account, you can ignore this email.</p>
-    </div>
-  `
-  return baseTemplate({
-    siteName,
-    title: 'Verify your email',
-    message: 'One quick step to activate your account.',
-    content,
-    supportEmail,
-    supportPhone
-  })
-}
+
 
 /**
  * Expired Cart / Removed Animal Notification
