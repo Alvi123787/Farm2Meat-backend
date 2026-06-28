@@ -7,6 +7,7 @@ dotenv.config()
 import animalRoutes from './routes/animalRoutes.js'
 import inquiryRoutes from './routes/inquiryRoutes.js'
 import feedbackRoutes from './routes/feedbackRoutes.js'
+import complaintRoutes from './routes/complaintRoutes.js'
 import analyticsRoutes from './routes/analyticsRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
 import searchRoutes from './routes/searchRoutes.js'
@@ -72,6 +73,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/animals', animalRoutes)
 app.use('/api/inquiries', inquiryRoutes)
 app.use('/api/feedback', feedbackRoutes)
+app.use('/api/complaints', complaintRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/search', searchRoutes)
