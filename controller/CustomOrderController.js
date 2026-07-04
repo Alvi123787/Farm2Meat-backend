@@ -11,11 +11,29 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     if (file.fieldname === 'voice') {
-      const allowedTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/mp4'];
+      // Accept more audio types for wider browser compatibility
+      const allowedTypes = [
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/ogg',
+        'audio/ogg;codecs=opus',
+        'audio/mp3',
+        'audio/mpeg', // mp3
+        'audio/wav',
+        'audio/wave',
+        'audio/x-wav',
+        'audio/m4a',
+        'audio/mp4'
+      ];
       if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid voice format. Only webm, mp3, wav, and m4a are allowed.'), false);
+        // Still accept even if we don't recognize exact mime type as long as it's audio
+        if (file.mimetype.startsWith('audio/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Invalid voice format. Please upload an audio file.'), false);
+        }
       }
     } else if (file.fieldname === 'images') {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
