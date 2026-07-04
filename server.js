@@ -84,6 +84,7 @@ app.use('/api/butchers', butcherRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/meat-items', meatItemRoutes)
 app.use('/api/custom-orders', customOrderRoutes)
+app.get('/api/test', (req, res) => res.json({ success: true, message: 'Server is working!' }))
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──
 app.use((err, req, res, next) => {
