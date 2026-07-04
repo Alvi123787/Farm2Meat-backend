@@ -15,6 +15,7 @@ const reviewSchema = new mongoose.Schema({
     enum: ['manual', 'emoji_post_order'],
     default: 'manual'
   },
+  hidden: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 })
 

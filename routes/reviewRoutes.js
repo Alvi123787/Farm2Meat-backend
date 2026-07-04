@@ -14,8 +14,11 @@ const RATING_MESSAGES = {
 
 router.get('/', async (req, res) => {
   try {
-    // Return all reviews, sorted by newest first
-    const reviews = await Review.find().sort({ createdAt: -1 }).lean()
+    // Check if admin (optional)
+    const isAdmin = req.headers['x-admin'] === 'true'
+    const query = isAdmin ? {} : { hidden: false }
+    // Return reviews, sorted by newest first
+    const reviews = await Review.find(query).sort({ createdAt: -1 }).lean()
     
     // Ensure data is always an array
     return res.json({ 
@@ -133,6 +136,25 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     return res.json({ success: true, message: 'Review deleted' })
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Failed to delete review' })
+  }
+})
+
+// Toggle review hidden status
+router.patch('/:id/toggle-hidden', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id)
+    if (!review) return res.status(404).json({ success: false, message: 'Review not found' })
+    
+    review.hidden = !review.hidden
+    const updated = await review.save()
+    
+    return res.json({ 
+      success: true, 
+      message: `Review ${updated.hidden ? 'hidden' : 'unhidden'} successfully`,
+      data: updated 
+    })
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Failed to update review' })
   }
 })
 

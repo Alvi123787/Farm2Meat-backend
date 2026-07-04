@@ -1043,7 +1043,7 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
 router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { status } = req.body
-    const validStatuses = ['Pending', 'Contacted', 'Completed', 'Cancelled', 'Shipped', 'Delivered']
+    const validStatuses = ['Pending', 'Contacted', 'Completed', 'Cancelled', 'Shipped', 'Delivered', 'Refunded']
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
