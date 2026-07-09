@@ -16,6 +16,7 @@ const formatDateTime = (dateString) => {
   if (isNaN(date.getTime())) return ''
   
   return date.toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
