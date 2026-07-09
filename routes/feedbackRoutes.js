@@ -4,7 +4,7 @@ import { optionalAuthMiddleware } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
 
-const getFeedbackEmail = () => process.env.FEEDBACK_EMAIL || 'farm2meat@gmail.com'
+const getFeedbackEmail = () => process.env.FEEDBACK_EMAIL || 'meatbyalvi1@gmail.com'
 
 const escapeHtml = (value = '') =>
   String(value)

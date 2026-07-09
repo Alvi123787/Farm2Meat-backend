@@ -79,7 +79,7 @@ export const buildOrderConfirmationEmailHtml = ({
   customer,
   items,
   pricing,
-  supportEmail = 'rebalalvi123@gmail.com',
+  supportEmail = 'meatbyalvi1@gmail.com',
   supportPhone = '03089880479',
   butcher, // new
   statusNote = 'Pending. Our team will contact you shortly to confirm your order.'
@@ -249,7 +249,7 @@ export const buildOrderStatusEmailHtml = ({
   orderId,
   status, // 'Shipped', 'Delivered', etc.
   customerName,
-  supportEmail = 'rebalalvi123@gmail.com',
+  supportEmail = 'meatbyalvi1@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const safeName = escapeHtml(customerName)
@@ -287,7 +287,7 @@ export const buildNewAnimalNotificationHtml = ({
   animalDescription,
   animalImageUrl,
   animalUrl,
-  supportEmail = 'support@meatbyalvi.com',
+  supportEmail = 'meatbyalvi1@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const safeAnimalName = escapeHtml(animalName)
@@ -480,7 +480,7 @@ export const buildAdminCustomEmailHtml = ({
   siteName = 'MeatByAlvi',
   title,
   message,
-  supportEmail = 'rebalalvi123@gmail.com',
+  supportEmail = 'meatbyalvi1@gmail.com',
   supportPhone = '03089880479'
 }) => {
   const content = `
