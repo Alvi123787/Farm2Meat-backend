@@ -110,7 +110,7 @@ const inquirySchema = new mongoose.Schema({
   },
   orderSource: {
     type: String,
-    enum: ['whatsapp', 'checkout', 'cart', 'direct'],
+    enum: ['whatsapp', 'checkout', 'cart', 'direct', 'custom-order'],
     default: 'whatsapp'
   },
   status: {

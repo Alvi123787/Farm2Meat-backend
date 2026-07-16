@@ -178,10 +178,10 @@ const createCustomOrder = async (req, res) => {
       phone: phoneNumber,
       email: email || '',
       animalName: title, // Use custom order title as "animalName"
-      animalId: savedOrder._id, // Link inquiry to custom order ID
+      animalId: savedOrder._id.toString(), // Link inquiry to custom order ID
       itemType: 'meat', // Default custom order to "meat" type
       category: 'Custom Order',
-      unit: unit,
+      unit: unit === 'piece' ? 'piece' : 'kg', // Ensure unit is in Inquiry enum
       price: 0, // Custom order price to be determined later
       quantity: parseFloat(quantity),
       totalAmount: 0,
@@ -195,8 +195,7 @@ const createCustomOrder = async (req, res) => {
         description || '',
         additionalNotes || '',
         preferredDeliveryTime ? `Preferred Time: ${preferredDeliveryTime}` : ''
-      ].filter(Boolean).join(' | '),
-      avatar: avatar
+      ].filter(Boolean).join(' | ')
     });
 
     const savedInquiry = await inquiry.save();
