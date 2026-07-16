@@ -1,7 +1,18 @@
 import CustomOrder from '../models/CustomOrder.js';
+import Inquiry from '../models/Inquiry.js';
+import Notification from '../models/Notification.js';
 import cloudinary from '../config/cloudinary.js';
 import { sendEmail } from '../utils/mailer.js';
 import multer from 'multer';
+
+// Helper functions (copied from inquiryRoutes)
+const generateInquiryId = () => {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+  return `INQ-${timestamp}${random}`;
+};
+
+const normalize = (v) => String(v || '').trim().toLowerCase();
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -71,12 +82,18 @@ const uploadToCloudinary = async (buffer, folder, resourceType = 'auto') => {
 
 const createCustomOrder = async (req, res) => {
   try {
-    const { title, description, unit, quantity, additionalNotes } = req.body;
+    const {
+      title, description, unit, quantity, additionalNotes,
+      fullName, phoneNumber, whatsappNumber, email,
+      houseNoStreet, areaColony, city,
+      preferredDeliveryDate, preferredDeliveryTime
+    } = req.body;
 
-    if (!title || !unit || !quantity) {
+    // Validate required fields
+    if (!title || !unit || !quantity || !fullName || !phoneNumber || !houseNoStreet || !areaColony) {
       return res.status(400).json({
         success: false,
-        message: 'Title, unit, and quantity are required.'
+        message: 'Title, unit, quantity, full name, phone number, house no./street, and area/colony are required.'
       });
     }
 
@@ -130,36 +147,137 @@ const createCustomOrder = async (req, res) => {
       quantity: parseFloat(quantity),
       voiceUrl,
       images,
-      additionalNotes
+      additionalNotes,
+      fullName,
+      phoneNumber,
+      whatsappNumber,
+      email,
+      address: {
+        houseNoStreet,
+        areaColony,
+        city: city || 'Rahim Yar Khan'
+      },
+      preferredDeliveryDate: preferredDeliveryDate ? new Date(preferredDeliveryDate) : undefined,
+      preferredDeliveryTime
     });
 
     const savedOrder = await customOrder.save();
 
+    // Create an Inquiry for this custom order
+    const nameParts = fullName.trim().split(' ');
+    const avatar = nameParts.length >= 2
+      ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+      : fullName.slice(0, 2).toUpperCase();
+
+    const inquiry = new Inquiry({
+      guestUserId: req.guestUserId || '',
+      userId: req.user?.id || '',
+      userType: req.user?.id ? 'registered' : 'guest',
+      inquiryId: generateInquiryId(),
+      customerName: fullName,
+      phone: phoneNumber,
+      email: email || '',
+      animalName: title, // Use custom order title as "animalName"
+      animalId: savedOrder._id, // Link inquiry to custom order ID
+      itemType: 'meat', // Default custom order to "meat" type
+      category: 'Custom Order',
+      unit: unit,
+      price: 0, // Custom order price to be determined later
+      quantity: parseFloat(quantity),
+      totalAmount: 0,
+      deliveryAddress: `${houseNoStreet}, ${areaColony}`,
+      city: city || 'Rahim Yar Khan',
+      deliveryDate: preferredDeliveryDate ? new Date(preferredDeliveryDate).toLocaleDateString() : '',
+      paymentMethod: 'whatsapp',
+      orderSource: 'custom-order',
+      status: 'Pending',
+      notes: [
+        description || '',
+        additionalNotes || '',
+        preferredDeliveryTime ? `Preferred Time: ${preferredDeliveryTime}` : ''
+      ].filter(Boolean).join(' | '),
+      avatar: avatar
+    });
+
+    const savedInquiry = await inquiry.save();
+
+    // Update custom order with the inquiry ID
+    savedOrder.inquiryId = savedInquiry.inquiryId;
+    await savedOrder.save();
+
+    // Create admin notification
+    await Notification.create({
+      type: 'inquiry_created',
+      title: 'New Custom Order',
+      message: `${savedOrder.fullName} requested a custom order: ${savedOrder.title}`,
+      entityType: 'inquiry',
+      entityId: String(savedInquiry._id)
+    });
+
     try {
       const adminEmail = process.env.ADMIN_EMAIL;
-      if (adminEmail) {
-        const emailHtml = `
-          <h2>New Custom Order Received</h2>
-          <p><strong>Product Title:</strong> ${title}</p>
-          <p><strong>Description:</strong> ${description || 'Not provided'}</p>
-          <p><strong>Unit:</strong> ${unit}</p>
-          <p><strong>Quantity:</strong> ${quantity}</p>
-          <p><strong>Additional Notes:</strong> ${additionalNotes || 'Not provided'}</p>
-          <p><strong>Created Date:</strong> ${new Date().toLocaleString()}</p>
-          <p><strong>Status:</strong> ${savedOrder.status}</p>
-          ${voiceUrl ? `<p><strong>Voice Recording:</strong> <a href="${voiceUrl}" target="_blank">${voiceUrl}</a></p>` : ''}
-          ${images.length > 0 ? `
-            <p><strong>Uploaded Images:</strong></p>
-            <ul>
-              ${images.map(img => `<li><a href="${img}" target="_blank">${img}</a></li>`).join('')}
-            </ul>
-          ` : ''}
-        `;
+      
+      // Build email HTML
+      const emailHtml = `
+        <h2>New Custom Order Received</h2>
+        <h3>Customer Information</h3>
+        <p><strong>Full Name:</strong> ${fullName}</p>
+        <p><strong>Phone Number:</strong> ${phoneNumber}</p>
+        ${whatsappNumber ? `<p><strong>WhatsApp Number:</strong> ${whatsappNumber}</p>` : ''}
+        ${email ? `<p><strong>Email:</strong> ${email}</p>` : ''}
+        <h3>Delivery Address</h3>
+        <p><strong>House No./Street:</strong> ${houseNoStreet}</p>
+        <p><strong>Area/Colony:</strong> ${areaColony}</p>
+        <p><strong>City:</strong> ${city || 'Rahim Yar Khan'}</p>
+        <h3>Order Details</h3>
+        <p><strong>Product Title:</strong> ${title}</p>
+        <p><strong>Description:</strong> ${description || 'Not provided'}</p>
+        <p><strong>Unit:</strong> ${unit}</p>
+        <p><strong>Quantity:</strong> ${quantity}</p>
+        ${preferredDeliveryDate ? `<p><strong>Preferred Delivery Date:</strong> ${new Date(preferredDeliveryDate).toLocaleDateString()}</p>` : ''}
+        ${preferredDeliveryTime ? `<p><strong>Preferred Delivery Time:</strong> ${preferredDeliveryTime}</p>` : ''}
+        <p><strong>Additional Notes:</strong> ${additionalNotes || 'Not provided'}</p>
+        <p><strong>Created Date:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Status:</strong> ${savedOrder.status}</p>
+        ${voiceUrl ? `<p><strong>Voice Recording:</strong> <a href="${voiceUrl}" target="_blank">${voiceUrl}</a></p>` : ''}
+        ${images.length > 0 ? `
+          <p><strong>Uploaded Images:</strong></p>
+          <ul>
+            ${images.map(img => `<li><a href="${img}" target="_blank">${img}</a></li>`).join('')}
+          </ul>
+        ` : ''}
+      `;
 
+      // Send email to admin
+      if (adminEmail) {
         await sendEmail({
           to: adminEmail,
           subject: 'New Custom Order Received',
           html: emailHtml
+        });
+      }
+
+      // Send email to user if email is provided
+      if (email) {
+        const userEmailHtml = `
+          <h2>Thank You for Your Custom Order!</h2>
+          <p>Dear ${fullName},</p>
+          <p>Thank you for your custom order request. We've received your order and our team will review it and contact you shortly.</p>
+          <h3>Order Summary</h3>
+          <p><strong>Order ID:</strong> ${savedOrder._id}</p>
+          <p><strong>Product Title:</strong> ${title}</p>
+          <p><strong>Quantity:</strong> ${quantity} ${unit}</p>
+          <p><strong>Status:</strong> ${savedOrder.status}</p>
+          <p>We'll be in touch soon!</p>
+          <br>
+          <p>Best regards,</p>
+          <p>MeatByAlvi Team</p>
+        `;
+        
+        await sendEmail({
+          to: email,
+          subject: 'Thank You for Your Custom Order',
+          html: userEmailHtml
         });
       }
     } catch (emailErr) {
@@ -188,4 +306,45 @@ const createCustomOrder = async (req, res) => {
   }
 };
 
-export { createCustomOrder, uploadFields };
+// Get all custom orders (admin only)
+const getCustomOrders = async (req, res) => {
+  try {
+    const customOrders = await CustomOrder.find().sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      count: customOrders.length,
+      data: customOrders
+    });
+  } catch (error) {
+    console.error('Error fetching custom orders:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch custom orders'
+    });
+  }
+};
+
+// Get a single custom order by ID (admin only)
+const getCustomOrderById = async (req, res) => {
+  try {
+    const customOrder = await CustomOrder.findById(req.params.id);
+    if (!customOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Custom order not found'
+      });
+    }
+    res.status(200).json({
+      success: true,
+      data: customOrder
+    });
+  } catch (error) {
+    console.error('Error fetching custom order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch custom order'
+    });
+  }
+};
+
+export { createCustomOrder, uploadFields, getCustomOrders, getCustomOrderById };
