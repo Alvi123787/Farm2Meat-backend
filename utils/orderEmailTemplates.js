@@ -80,6 +80,8 @@ export const buildOrderConfirmationEmailHtml = ({
   customer,
   items,
   pricing,
+  expectedDeliveryDate,
+  expectedDeliveryTime,
   supportEmail = 'meatbyalvi1@gmail.com',
   supportPhone = '03089880479',
   butcher, // new
@@ -162,6 +164,18 @@ export const buildOrderConfirmationEmailHtml = ({
         <td style="padding:10px 0;color:#666;font-size:14px">Payment Method</td>
         <td style="padding:10px 0;color:#222;font-weight:600;text-align:right;text-transform:capitalize">${safePay}</td>
       </tr>
+      ${expectedDeliveryDate ? `
+      <tr>
+        <td style="padding:10px 0;color:#666;font-size:14px">Expected Delivery Date</td>
+        <td style="padding:10px 0;color:#222;font-weight:600;text-align:right">${escapeHtml(new Date(expectedDeliveryDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }))}</td>
+      </tr>
+      ` : ''}
+      ${expectedDeliveryTime ? `
+      <tr>
+        <td style="padding:10px 0;color:#666;font-size:14px">Expected Delivery Time</td>
+        <td style="padding:10px 0;color:#222;font-weight:600;text-align:right">${escapeHtml(expectedDeliveryTime)}</td>
+      </tr>
+      ` : ''}
     </table>
 
     <!-- Items Section -->
@@ -344,6 +358,8 @@ export const buildAdminOrderNotificationEmailHtml = ({
   totalAmount,
   deliveryCharge = 49,
   deliveryAddress,
+  expectedDeliveryDate,
+  expectedDeliveryTime,
   supportEmail,
   supportPhone
 }) => {
@@ -359,6 +375,8 @@ export const buildAdminOrderNotificationEmailHtml = ({
       <p><strong>Delivery Charge:</strong> ${formatCurrency(deliveryCharge)}</p>
       <p><strong>Final Total:</strong> ${formatCurrency(finalTotal)}</p>
       <p><strong>Delivery Address:</strong> ${escapeHtml(deliveryAddress)}</p>
+      ${expectedDeliveryDate ? `<p><strong>Expected Delivery Date:</strong> ${escapeHtml(new Date(expectedDeliveryDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }))}</p>` : ''}
+      ${expectedDeliveryTime ? `<p><strong>Expected Delivery Time:</strong> ${escapeHtml(expectedDeliveryTime)}</p>` : ''}
       <div style="margin-top:16px">
         <p><strong>Items:</strong></p>
         <ul style="margin:0;padding-left:20px">${itemsList}</ul>

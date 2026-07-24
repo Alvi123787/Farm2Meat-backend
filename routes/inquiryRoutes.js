@@ -51,6 +51,26 @@ const normalize = (v) => String(v || '').trim().toLowerCase()
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim())
 
+// ── Helper: today's date as YYYY-MM-DD using LOCAL (server) date components ──
+// Used instead of `new Date(dateString)` comparisons, which parse a plain
+// "YYYY-MM-DD" string as UTC midnight and can wrongly flag "today" as a past
+// date once compared against a locally-derived "today" Date object.
+const getTodayLocalStr = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+// ── Helper: validate an optional expected-delivery-date is not in the past ──
+// Returns an error message string, or null if valid / not provided.
+const validateExpectedDeliveryDate = (expectedDeliveryDate) => {
+  if (!expectedDeliveryDate) return null // optional — nothing to validate
+  const todayStr = getTodayLocalStr()
+  if (String(expectedDeliveryDate).slice(0, 10) < todayStr) {
+    return 'Expected delivery date cannot be in the past'
+  }
+  return null
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/inquiries/create — Create new inquiry
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -70,11 +90,23 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       deliveryAddress,
       city,
       deliveryDate,
+      expectedDeliveryDate,
+      expectedDeliveryTime,
       paymentMethod,
       orderSource,
       notes,
       animalCare
     } = req.body
+
+    // Expected delivery date/time are OPTIONAL.
+    // Only validate "not in the past" if a date was actually provided.
+    const dateError = validateExpectedDeliveryDate(expectedDeliveryDate)
+    if (dateError) {
+      return res.status(400).json({
+        success: false,
+        message: dateError
+      })
+    }
 
     // Basic validation
     if (!customerName || !phone || !animalName) {
@@ -180,6 +212,8 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       deliveryAddress: deliveryAddress || '',
       city: city || '',
       deliveryDate: deliveryDate || '',
+      expectedDeliveryDate: expectedDeliveryDate || '',
+      expectedDeliveryTime: expectedDeliveryTime || '',
       paymentMethod: paymentMethod || 'whatsapp',
       orderSource: orderSource || 'checkout',
       status: 'Pending',
@@ -270,7 +304,9 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         items: [{ name: saved.animalName, quantity: saved.quantity }],
         totalAmount: saved.totalAmount,
         deliveryCharge: 49,
-        deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`
+        deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`,
+        expectedDeliveryDate: saved.expectedDeliveryDate,
+        expectedDeliveryTime: saved.expectedDeliveryTime
       })
 
       await sendEmail({
@@ -303,6 +339,8 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
             deliveryCharge: 49,
             total: saved.totalAmount + 49
           },
+          expectedDeliveryDate: saved.expectedDeliveryDate,
+          expectedDeliveryTime: saved.expectedDeliveryTime,
           butcher: saved.butcher,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
@@ -352,12 +390,22 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
     }
 
     const { customerName, phone, email, items, deliveryAddress,
-            city, deliveryDate, paymentMethod, orderSource, notes, deliveryCharge, animalCare } = req.body
+            city, deliveryDate, expectedDeliveryDate, expectedDeliveryTime, paymentMethod, orderSource, notes, deliveryCharge, animalCare } = req.body
 
     if (!customerName || !phone || !items || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Customer info and at least one item required'
+      })
+    }
+
+    // Expected delivery date/time are OPTIONAL.
+    // Only validate "not in the past" if a date was actually provided.
+    const dateError = validateExpectedDeliveryDate(expectedDeliveryDate)
+    if (dateError) {
+      return res.status(400).json({
+        success: false,
+        message: dateError
       })
     }
 
@@ -529,6 +577,8 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         deliveryAddress: deliveryAddress || '',
         city: city || '',
         deliveryDate: deliveryDate || '',
+        expectedDeliveryDate: expectedDeliveryDate || '',
+        expectedDeliveryTime: expectedDeliveryTime || '',
         paymentMethod: paymentMethod || 'whatsapp',
         orderSource: orderSource || 'cart',
         status: 'Pending',
@@ -626,7 +676,9 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         items: itemsForEmail,
         totalAmount: sub,
         deliveryCharge: 49,
-        deliveryAddress: `${deliveryAddress}, ${city}`
+        deliveryAddress: `${deliveryAddress}, ${city}`,
+        expectedDeliveryDate,
+        expectedDeliveryTime
       })
 
       await sendEmail({
@@ -659,6 +711,8 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
           },
           items: itemsForEmail,
           pricing: { subtotal: sub, deliveryCharge: 49, total: sub + 49 },
+          expectedDeliveryDate,
+          expectedDeliveryTime,
           butcher: butcherDetails,
           ctaUrl: `${getFrontendOrigin()}/shop`
         })
@@ -910,6 +964,8 @@ router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
           deliveryAddress: inquiry.deliveryAddress,
           city: inquiry.city,
           deliveryDate: inquiry.deliveryDate,
+          expectedDeliveryDate: inquiry.expectedDeliveryDate,
+          expectedDeliveryTime: inquiry.expectedDeliveryTime,
           status: inquiry.status,
           createdAt: inquiry.createdAt,
           totalAmount: 0,
@@ -998,6 +1054,8 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
       deliveryAddress: inquiries[0].deliveryAddress,
       city: inquiries[0].city,
       deliveryDate: inquiries[0].deliveryDate,
+      expectedDeliveryDate: inquiries[0].expectedDeliveryDate,
+      expectedDeliveryTime: inquiries[0].expectedDeliveryTime,
       status: inquiries[0].status,
       createdAt: inquiries[0].createdAt,
       totalAmount: 0,

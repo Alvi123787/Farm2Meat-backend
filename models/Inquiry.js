@@ -103,6 +103,14 @@ const inquirySchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  expectedDeliveryDate: {
+    type: String,
+    default: ''
+  },
+  expectedDeliveryTime: {
+    type: String,
+    default: ''
+  },
   paymentMethod: {
     type: String,
     enum: ['cod', 'advance', 'full', 'whatsapp'],
