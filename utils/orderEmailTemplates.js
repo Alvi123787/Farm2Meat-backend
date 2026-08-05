@@ -206,7 +206,7 @@ export const buildOrderConfirmationEmailHtml = ({
       </tr>
       <tr>
         <td style="padding:8px 0;color:#666;font-size:14px">Delivery</td>
-        <td style="padding:8px 0;color:#222;font-weight:700;text-align:right">${formatCurrency(delivery || 49)}</td>
+        <td style="padding:8px 0;color:#222;font-weight:700;text-align:right">${formatCurrency(delivery || 99)}</td>
       </tr>
       <tr>
         <td style="padding:16px 0;color:#222;font-weight:800;font-size:18px;border-top:2px solid #8B4513">Total Amount</td>
@@ -356,7 +356,7 @@ export const buildAdminOrderNotificationEmailHtml = ({
   customerName,
   items,
   totalAmount,
-  deliveryCharge = 49,
+  deliveryCharge = 99,
   deliveryAddress,
   expectedDeliveryDate,
   expectedDeliveryTime,
