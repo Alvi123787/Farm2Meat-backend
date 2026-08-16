@@ -303,7 +303,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         customerName: saved.customerName,
         items: [{ name: saved.animalName, quantity: saved.quantity }],
         totalAmount: saved.totalAmount,
-        deliveryCharge: 99,
+        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
         deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`,
         expectedDeliveryDate: saved.expectedDeliveryDate,
         expectedDeliveryTime: saved.expectedDeliveryTime
@@ -336,7 +336,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
           }],
           pricing: {
             subtotal: saved.totalAmount,
-            deliveryCharge: 99,
+            deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
             total: saved.totalAmount + 99
           },
           expectedDeliveryDate: saved.expectedDeliveryDate,
@@ -675,7 +675,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         customerName,
         items: itemsForEmail,
         totalAmount: sub,
-        deliveryCharge: 99,
+        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
         deliveryAddress: `${deliveryAddress}, ${city}`,
         expectedDeliveryDate,
         expectedDeliveryTime
@@ -710,7 +710,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             city
           },
           items: itemsForEmail,
-          pricing: { subtotal: sub, deliveryCharge: 99, total: sub + 99 },
+          pricing: { subtotal: sub, deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99, total: sub + (req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99) },
           expectedDeliveryDate,
           expectedDeliveryTime,
           butcher: butcherDetails,
