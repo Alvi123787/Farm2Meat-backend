@@ -303,7 +303,7 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         customerName: saved.customerName,
         items: [{ name: saved.animalName, quantity: saved.quantity }],
         totalAmount: saved.totalAmount,
-        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
+        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
         deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`,
         expectedDeliveryDate: saved.expectedDeliveryDate,
         expectedDeliveryTime: saved.expectedDeliveryTime
@@ -336,8 +336,8 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
           }],
           pricing: {
             subtotal: saved.totalAmount,
-            deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
-            total: saved.totalAmount + 99
+            deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
+            total: saved.totalAmount + (req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49)
           },
           expectedDeliveryDate: saved.expectedDeliveryDate,
           expectedDeliveryTime: saved.expectedDeliveryTime,
@@ -675,7 +675,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         customerName,
         items: itemsForEmail,
         totalAmount: sub,
-        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99,
+        deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
         deliveryAddress: `${deliveryAddress}, ${city}`,
         expectedDeliveryDate,
         expectedDeliveryTime
@@ -710,7 +710,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
             city
           },
           items: itemsForEmail,
-          pricing: { subtotal: sub, deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99, total: sub + (req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 99) },
+          pricing: { subtotal: sub, deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49, total: sub + (req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49) },
           expectedDeliveryDate,
           expectedDeliveryTime,
           butcher: butcherDetails,
