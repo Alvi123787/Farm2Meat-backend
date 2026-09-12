@@ -162,11 +162,10 @@ const inquirySchema = new mongoose.Schema({
   toObject: { virtuals: true }
 })
 
-inquirySchema.pre('save', function (next) {
+inquirySchema.pre('save', function () {
   if (!this.date) {
     this.date = this.createdAt || new Date()
   }
-  next()
 })
 
 export default mongoose.models.Inquiry || mongoose.model('Inquiry', inquirySchema)
