@@ -47,6 +47,11 @@ const generateOrderGroupId = () => {
 const formatOrderDate = (d = new Date()) =>
   d.toLocaleString('en-PK', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
+const getInquiryDate = (inq) => {
+  if (!inq) return new Date()
+  return inq.createdAt || inq.date || (inq._id && typeof inq._id.getTimestamp === 'function' ? inq._id.getTimestamp() : inq._id ? new Date(parseInt(inq._id.toString().substring(0, 8), 16) * 1000) : new Date())
+}
+
 const normalize = (v) => String(v || '').trim().toLowerCase()
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim())
@@ -297,16 +302,31 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
     // ── Send Confirmation Email ──
     let emailSent = false
     try {
+      const singleItemForEmail = {
+        name: saved.animalName,
+        quantity: saved.quantity || qty || 1,
+        unit: saved.unit || (saved.itemType === 'meat' ? 'kg' : ''),
+        weight: saved.weight || '',
+        category: saved.category || '',
+        itemType: saved.itemType || (isMeat ? 'meat' : 'livestock'),
+        unitPrice: saved.price || parsedPrice || 0,
+        subtotal: saved.totalAmount || (parsedPrice * (saved.quantity || qty || 1))
+      }
+
       // Always send admin notification
       const adminHtml = buildAdminOrderNotificationEmailHtml({
         orderId: saved.inquiryId,
         customerName: saved.customerName,
-        items: [{ name: saved.animalName, quantity: saved.quantity }],
+        customerPhone: saved.phone || phone,
+        customerEmail: saved.email || cleanEmail,
+        items: [singleItemForEmail],
         totalAmount: saved.totalAmount,
         deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
-        deliveryAddress: `${saved.deliveryAddress}, ${saved.city}`,
+        deliveryAddress: [saved.deliveryAddress, saved.city].filter(Boolean).join(', '),
         expectedDeliveryDate: saved.expectedDeliveryDate,
-        expectedDeliveryTime: saved.expectedDeliveryTime
+        expectedDeliveryTime: saved.expectedDeliveryTime,
+        paymentMethod: saved.paymentMethod || paymentMethod || 'whatsapp',
+        notes: saved.notes || notes || ''
       })
 
       await sendEmail({
@@ -319,21 +339,16 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       if (validateEmail(cleanEmail)) {
         const html = buildOrderConfirmationEmailHtml({
           orderId: saved.inquiryId,
-          orderDate: formatOrderDate(new Date()),
-          paymentMethod: paymentMethod || 'whatsapp',
+          orderDate: formatOrderDate(saved.createdAt || new Date()),
+          paymentMethod: saved.paymentMethod || paymentMethod || 'whatsapp',
           customer: {
-            name: customerName,
+            name: saved.customerName || customerName,
             email: cleanEmail,
-            phone,
-            address: deliveryAddress,
-            city
+            phone: saved.phone || phone,
+            address: saved.deliveryAddress || deliveryAddress,
+            city: saved.city || city
           },
-          items: [{
-            name: animalName,
-            quantity: qty,
-            unitPrice: parsedPrice,
-            subtotal: saved.totalAmount
-          }],
+          items: [singleItemForEmail],
           pricing: {
             subtotal: saved.totalAmount,
             deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
@@ -666,19 +681,27 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
       const itemsForEmail = inquiries.map((i) => ({
         name: i.animalName,
         quantity: i.quantity || 1,
+        unit: i.unit || (i.itemType === 'meat' ? 'kg' : ''),
+        weight: i.weight || '',
+        category: i.category || '',
+        itemType: i.itemType || 'meat',
         unitPrice: i.price || 0,
-        subtotal: i.totalAmount || 0
+        subtotal: i.totalAmount || ((i.price || 0) * (i.quantity || 1))
       }))
 
       const adminHtml = buildAdminOrderNotificationEmailHtml({
         orderId: orderGroupId,
         customerName,
+        customerPhone: phone,
+        customerEmail: cleanEmail,
         items: itemsForEmail,
         totalAmount: sub,
         deliveryCharge: req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : 49,
-        deliveryAddress: `${deliveryAddress}, ${city}`,
+        deliveryAddress: [deliveryAddress, city].filter(Boolean).join(', '),
         expectedDeliveryDate,
-        expectedDeliveryTime
+        expectedDeliveryTime,
+        paymentMethod: paymentMethod || (orderSource === 'checkout' ? 'cod' : 'whatsapp'),
+        notes: notes || ''
       })
 
       await sendEmail({
@@ -700,7 +723,7 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
 
         const html = buildOrderConfirmationEmailHtml({
           orderId: orderGroupId,
-          orderDate: formatOrderDate(new Date()),
+          orderDate: formatOrderDate(inquiries[0]?.createdAt || new Date()),
           paymentMethod: paymentMethod || (orderSource === 'checkout' ? 'cod' : 'whatsapp'),
           customer: {
             name: customerName,
@@ -777,7 +800,15 @@ router.get('/me', authMiddleware, async (req, res) => {
       ]
     }
 
-    const inquiries = await Inquiry.find(userQuery).sort({ createdAt: -1 })
+    const rawInquiries = await Inquiry.find(userQuery).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
+    const inquiries = rawInquiries.map(inq => {
+      const orderDate = getInquiryDate(inq)
+      return {
+        ...inq,
+        createdAt: inq.createdAt || orderDate,
+        date: inq.date || orderDate
+      }
+    })
 
     res.status(200).json({
       success: true,
@@ -875,11 +906,15 @@ router.get('/me/overview', authMiddleware, async (req, res) => {
 // GET /api/inquiries/meat — Fetch only meat inquiries
 router.get('/meat', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find({ itemType: 'meat' }).sort({ createdAt: -1 })
+    const rawInquiries = await Inquiry.find({ itemType: 'meat' }).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
+    const data = rawInquiries.map(inq => {
+      const orderDate = getInquiryDate(inq)
+      return { ...inq, createdAt: inq.createdAt || orderDate, date: inq.date || orderDate }
+    })
     res.status(200).json({
       success: true,
-      count: inquiries.length,
-      data: inquiries
+      count: data.length,
+      data
     })
   } catch (error) {
     console.error('Error fetching meat inquiries:', error.message)
@@ -890,11 +925,15 @@ router.get('/meat', authMiddleware, adminMiddleware, async (req, res) => {
 // GET /api/inquiries/livestock — Fetch only livestock inquiries
 router.get('/livestock', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const inquiries = await Inquiry.find({ itemType: 'livestock' }).sort({ createdAt: -1 })
+    const rawInquiries = await Inquiry.find({ itemType: 'livestock' }).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
+    const data = rawInquiries.map(inq => {
+      const orderDate = getInquiryDate(inq)
+      return { ...inq, createdAt: inq.createdAt || orderDate, date: inq.date || orderDate }
+    })
     res.status(200).json({
       success: true,
-      count: inquiries.length,
-      data: inquiries
+      count: data.length,
+      data
     })
   } catch (error) {
     console.error('Error fetching livestock inquiries:', error.message)
@@ -914,7 +953,11 @@ router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
     } else if (domain === 'animal' || domain === 'livestock') {
       query.itemType = 'livestock'
     }
-    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 })
+    const rawInquiries = await Inquiry.find(query).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
+    const inquiries = rawInquiries.map(inq => {
+      const orderDate = getInquiryDate(inq)
+      return { ...inq, createdAt: inq.createdAt || orderDate, date: inq.date || orderDate }
+    })
 
     res.status(200).json({
       success: true,
@@ -948,12 +991,13 @@ router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
       query.itemType = itemType
     }
 
-    const inquiries = await Inquiry.find(query).sort({ createdAt: -1 })
+    const rawInquiries = await Inquiry.find(query).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
 
     // Group inquiries by orderGroupId or inquiryId (if no orderGroupId)
     const orderGroups = {}
-    inquiries.forEach(inquiry => {
+    rawInquiries.forEach(inquiry => {
       const groupId = inquiry.orderGroupId || inquiry.inquiryId
+      const orderDate = getInquiryDate(inquiry)
       if (!orderGroups[groupId]) {
         // Create a new order group with the first inquiry
         orderGroups[groupId] = {
@@ -967,7 +1011,8 @@ router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
           expectedDeliveryDate: inquiry.expectedDeliveryDate,
           expectedDeliveryTime: inquiry.expectedDeliveryTime,
           status: inquiry.status,
-          createdAt: inquiry.createdAt,
+          createdAt: orderDate,
+          date: orderDate,
           totalAmount: 0,
           items: []
         }
@@ -987,14 +1032,16 @@ router.get('/grouped', authMiddleware, adminMiddleware, async (req, res) => {
         itemType: inquiry.itemType,
         animalCare: inquiry.animalCare,
         animalCarePrice: inquiry.animalCarePrice,
-        notes: inquiry.notes
+        notes: inquiry.notes,
+        createdAt: orderDate,
+        date: orderDate
       })
       orderGroups[groupId].totalAmount += inquiry.totalAmount
     })
 
-    // Convert to array and sort by createdAt descending
+    // Convert to array and sort by createdAt/date descending
     const orders = Object.values(orderGroups).sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
+      new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
     )
 
     res.status(200).json({
@@ -1031,7 +1078,7 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
         { orderGroupId: orderGroupId },
         { inquiryId: orderGroupId }
       ]
-    }).sort({ createdAt: -1 })
+    }).sort({ createdAt: -1, date: -1, _id: -1 }).lean()
 
     // Filter by itemType if domain is specified
     if (itemType) {
@@ -1045,6 +1092,8 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
       })
     }
 
+    const orderDate = getInquiryDate(inquiries[0])
+
     // Create the order object
     const order = {
       orderId: orderGroupId,
@@ -1057,7 +1106,8 @@ router.get('/group/:orderGroupId', authMiddleware, adminMiddleware, async (req, 
       expectedDeliveryDate: inquiries[0].expectedDeliveryDate,
       expectedDeliveryTime: inquiries[0].expectedDeliveryTime,
       status: inquiries[0].status,
-      createdAt: inquiries[0].createdAt,
+      createdAt: orderDate,
+      date: orderDate,
       totalAmount: 0,
       items: []
     }

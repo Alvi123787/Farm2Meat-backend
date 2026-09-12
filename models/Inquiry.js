@@ -156,6 +156,17 @@ const inquirySchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 })
 
-export default mongoose.model('Inquiry', inquirySchema)
+inquirySchema.pre('save', function (next) {
+  if (!this.date) {
+    this.date = this.createdAt || new Date()
+  }
+  next()
+})
+
+export default mongoose.models.Inquiry || mongoose.model('Inquiry', inquirySchema)

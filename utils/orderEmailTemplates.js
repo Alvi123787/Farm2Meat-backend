@@ -98,14 +98,26 @@ export const buildOrderConfirmationEmailHtml = ({
 
   const itemsRows = (items || []).map((it) => {
     const qty = Number(it.quantity || 1)
-    const price = Number(it.unitPrice || 0)
+    const unit = it.unit ? escapeHtml(it.unit) : ''
+    const price = Number(it.unitPrice || it.price || 0)
     const subtotal = Number(it.subtotal || price * qty)
+    const categoryBadge = it.category ? ` <span style="font-size:11px;color:#888;font-weight:normal">(${escapeHtml(it.category)})</span>` : ''
+    const weightBadge = it.weight ? ` <span style="font-size:11px;color:#888;font-weight:normal">(${escapeHtml(it.weight)} kg)</span>` : ''
+
     return `
       <tr>
-        <td style="padding:12px 10px;border-top:1px solid #eee;color:#222;font-weight:600">${escapeHtml(it.name)}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eee;color:#555;text-align:center">${qty}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eee;color:#555;text-align:right">${formatCurrency(price)}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eee;color:#222;text-align:right;font-weight:700">${formatCurrency(subtotal)}</td>
+        <td style="padding:12px 10px;border-top:1px solid #eee;color:#222;font-weight:600">
+          ${escapeHtml(it.name)}${categoryBadge}${weightBadge}
+        </td>
+        <td style="padding:12px 10px;border-top:1px solid #eee;color:#555;text-align:center">
+          ${qty} ${unit}
+        </td>
+        <td style="padding:12px 10px;border-top:1px solid #eee;color:#555;text-align:right">
+          ${formatCurrency(price)}
+        </td>
+        <td style="padding:12px 10px;border-top:1px solid #eee;color:#222;text-align:right;font-weight:700">
+          ${formatCurrency(subtotal)}
+        </td>
       </tr>
     `
   }).join('')
@@ -354,42 +366,143 @@ export const buildAdminOrderNotificationEmailHtml = ({
   siteName = 'MeatByAlvi',
   orderId,
   customerName,
+  customerPhone,
+  customerEmail,
   items,
   totalAmount,
   deliveryCharge = 49,
   deliveryAddress,
   expectedDeliveryDate,
   expectedDeliveryTime,
+  paymentMethod,
+  notes,
   supportEmail,
   supportPhone
 }) => {
-  const itemsList = (items || []).map(it => `<li>${escapeHtml(it.name)} (x${it.quantity})</li>`).join('')
+  const safeOrderId = escapeHtml(orderId)
+  const safeCustomer = escapeHtml(customerName)
+  const safePhone = customerPhone ? escapeHtml(customerPhone) : ''
+  const safeEmail = customerEmail ? escapeHtml(customerEmail) : ''
   const finalTotal = totalAmount + deliveryCharge
-  
+
+  const itemsRows = (items || []).map(it => {
+    const qty = Number(it.quantity || 1)
+    const unit = it.unit ? escapeHtml(it.unit) : ''
+    const price = Number(it.unitPrice || it.price || 0)
+    const subtotal = Number(it.subtotal || price * qty)
+    const categoryBadge = it.category ? ` <span style="font-size:11px;background:#f5f5f5;color:#666;padding:2px 6px;border-radius:4px;text-transform:capitalize">${escapeHtml(it.category)}</span>` : ''
+    const weightBadge = it.weight ? ` <span style="font-size:11px;color:#888">(${escapeHtml(it.weight)} kg)</span>` : ''
+
+    return `
+      <tr>
+        <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#222;font-weight:600">
+          ${escapeHtml(it.name)}${categoryBadge}${weightBadge}
+        </td>
+        <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#555;text-align:center">
+          ${qty} ${unit}
+        </td>
+        <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#555;text-align:right">
+          ${formatCurrency(price)}
+        </td>
+        <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#e65100;font-weight:700;text-align:right">
+          ${formatCurrency(subtotal)}
+        </td>
+      </tr>
+    `
+  }).join('')
+
   const content = `
     <div style="background:#fff3e0;border:1px solid #ffe0b2;padding:20px;border-radius:12px">
       <h2 style="color:#e65100;margin:0 0 16px">New Order Received! 🛒</h2>
-      <p><strong>Order ID:</strong> ${escapeHtml(orderId)}</p>
-      <p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>
-      <p><strong>Items Total:</strong> ${formatCurrency(totalAmount)}</p>
-      <p><strong>Delivery Charge:</strong> ${formatCurrency(deliveryCharge)}</p>
-      <p><strong>Final Total:</strong> ${formatCurrency(finalTotal)}</p>
-      <p><strong>Delivery Address:</strong> ${escapeHtml(deliveryAddress)}</p>
-      ${expectedDeliveryDate ? `<p><strong>Expected Delivery Date:</strong> ${escapeHtml(new Date(expectedDeliveryDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }))}</p>` : ''}
-      ${expectedDeliveryTime ? `<p><strong>Expected Delivery Time:</strong> ${escapeHtml(expectedDeliveryTime)}</p>` : ''}
-      <div style="margin-top:16px">
-        <p><strong>Items:</strong></p>
-        <ul style="margin:0;padding-left:20px">${itemsList}</ul>
-      </div>
+      
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #ffe0b2">
+        <tr>
+          <td style="padding:8px 12px;color:#666;width:140px"><strong>Order ID:</strong></td>
+          <td style="padding:8px 12px;font-family:monospace;font-weight:700;color:#222">${safeOrderId}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Customer Name:</strong></td>
+          <td style="padding:8px 12px;font-weight:600;color:#222">${safeCustomer}</td>
+        </tr>
+        ${safePhone ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Customer Phone:</strong></td>
+          <td style="padding:8px 12px"><a href="tel:${safePhone}" style="color:#e65100;font-weight:700;text-decoration:none">${safePhone}</a></td>
+        </tr>
+        ` : ''}
+        ${safeEmail ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Customer Email:</strong></td>
+          <td style="padding:8px 12px"><a href="mailto:${safeEmail}" style="color:#e65100;text-decoration:none">${safeEmail}</a></td>
+        </tr>
+        ` : ''}
+        ${deliveryAddress ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Delivery Address:</strong></td>
+          <td style="padding:8px 12px;color:#222">${escapeHtml(deliveryAddress)}</td>
+        </tr>
+        ` : ''}
+        ${expectedDeliveryDate ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Expected Delivery:</strong></td>
+          <td style="padding:8px 12px;color:#222">${escapeHtml(new Date(expectedDeliveryDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }))} ${expectedDeliveryTime ? `(${escapeHtml(expectedDeliveryTime)})` : ''}</td>
+        </tr>
+        ` : ''}
+        ${paymentMethod ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Payment Method:</strong></td>
+          <td style="padding:8px 12px;color:#222;text-transform:capitalize">${escapeHtml(paymentMethod)}</td>
+        </tr>
+        ` : ''}
+        ${notes ? `
+        <tr>
+          <td style="padding:8px 12px;color:#666"><strong>Notes:</strong></td>
+          <td style="padding:8px 12px;color:#222">${escapeHtml(notes)}</td>
+        </tr>
+        ` : ''}
+      </table>
+
+      <!-- Ordered Items Table -->
+      <h3 style="margin:20px 0 10px;color:#e65100;font-size:16px;">📦 Ordered Items (${(items || []).length}):</h3>
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:16px;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #ffe0b2">
+        <thead>
+          <tr style="background:#fff8e1;font-size:12px;color:#5d4037">
+            <th style="padding:10px 12px;text-align:left">Item / Product</th>
+            <th style="padding:10px 12px;text-align:center">Qty / Unit</th>
+            <th style="padding:10px 12px;text-align:right">Unit Price</th>
+            <th style="padding:10px 12px;text-align:right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsRows}
+        </tbody>
+      </table>
+
+      <!-- Pricing Summary -->
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin-bottom:20px;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #ffe0b2">
+        <tr>
+          <td style="padding:8px 12px;color:#666">Items Subtotal:</td>
+          <td style="padding:8px 12px;text-align:right;font-weight:600">${formatCurrency(totalAmount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;color:#666">Delivery Charges:</td>
+          <td style="padding:8px 12px;text-align:right;font-weight:600">${formatCurrency(deliveryCharge)}</td>
+        </tr>
+        <tr style="border-top:2px solid #e65100;background:#fff8e1">
+          <td style="padding:10px 12px;font-size:16px;font-weight:800;color:#e65100">Total Order Amount:</td>
+          <td style="padding:10px 12px;text-align:right;font-size:18px;font-weight:800;color:#e65100">${formatCurrency(finalTotal)}</td>
+        </tr>
+      </table>
+
       <div style="margin-top:24px;text-align:center">
-        <a href="${getFrontendOrigin()}/admin/orders" style="display:inline-block;background:#e65100;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">Manage Orders</a>
+        <a href="${getFrontendOrigin()}/admin/orders" style="display:inline-block;background:#e65100;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold">Manage Orders in Admin Panel</a>
       </div>
     </div>
   `
   return baseTemplate({
     siteName,
     title: 'New Order Alert',
-    message: 'A new order has been placed on the platform.',
+    message: `A new order (${safeOrderId}) with ${(items || []).length} item(s) has been placed.`,
     content,
     supportEmail,
     supportPhone
