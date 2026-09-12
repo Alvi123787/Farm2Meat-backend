@@ -36,7 +36,7 @@ const app = express()
 // ── Middleware ──
 const allowedOrigins = process.env.FRONTEND_ORIGIN 
   ? process.env.FRONTEND_ORIGIN.split(',').map(o => o.trim().replace(/\/$/, '')) 
-  : ['http://localhost:5173', 'https://meatbyalvi.netlify.app', 'https://meatbyalvi.com', 'https://www.meatbyalvi.com', 'https://meatbyalvi001.netlify.app']
+  : ['http://localhost:5173', 'https://meatbyalvi.netlify.app', 'https://meatbyalvi.com', 'https://www.meatbyalvi.com', 'https://meatbyalvi001.netlify.app', 'https://dashboardbyalvi.netlify.app']
 
 app.use(cors({ 
   origin: allowedOrigins,
