@@ -118,33 +118,32 @@ router.get('/product/:productId', async (req, res) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/reviews/eligibility — Check if user can review this product
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/reviews/eligibility — Check if user can review (product-specific or general)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 router.get('/eligibility', authMiddleware, async (req, res) => {
   try {
     const { productId } = req.query
     const userId = String(req.user?.id || '')
     const userEmail = normalize(req.user?.email)
 
-    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ success: false, message: 'Valid product ID is required' })
-    }
-
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Authentication required' })
     }
 
-    // Look for all inquiries/orders for this user containing this product
-    const orderQuery = {
-      $and: [
-        {
-          $or: [
-            { userId: userId },
-            ...(mongoose.Types.ObjectId.isValid(userId) ? [{ userId: new mongoose.Types.ObjectId(userId) }] : []),
-            ...(userEmail ? [{ email: userEmail }] : [])
-          ]
-        },
-        { animalId: String(productId) }
-      ]
+    if (productId && !mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ success: false, message: 'Valid product ID is required' })
     }
+
+    // Build user matching conditions: matches by userId (string or ObjectId) or userEmail
+    const userConditions = [
+      { userId: userId },
+      ...(mongoose.Types.ObjectId.isValid(userId) ? [{ userId: new mongoose.Types.ObjectId(userId) }] : []),
+      ...(userEmail ? [{ email: userEmail }] : [])
+    ]
+
+    const orderQuery = productId
+      ? { $and: [{ $or: userConditions }, { animalId: String(productId) }] }
+      : { $or: userConditions }
 
     const customerOrders = await Inquiry.find(orderQuery).sort({ createdAt: -1 }).lean()
 
@@ -153,7 +152,9 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         success: true,
         canReview: false,
         reason: 'not_purchased',
-        message: 'Only verified customers who have purchased this product can leave a review.'
+        message: productId
+          ? 'Only verified customers who have purchased this product can leave a review.'
+          : 'You need at least one delivered order to leave a verified review.'
       })
     }
 
@@ -165,7 +166,9 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         success: true,
         canReview: false,
         reason: 'not_delivered',
-        message: 'Your order for this product is currently being processed. You can review it once delivered.'
+        message: productId
+          ? 'Your order for this product is currently being processed. You can review it once delivered.'
+          : 'Your order is currently being processed. You can review it once delivered.'
       })
     }
 
@@ -173,13 +176,17 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
     const deliveredOrderIds = deliveredOrders.map((o) => o._id)
     const deliveredOrderGroupIds = deliveredOrders.map((o) => o.inquiryId).filter(Boolean)
 
-    const existingReviews = await Review.find({
-      product: new mongoose.Types.ObjectId(productId),
+    const reviewFilter = {
       $or: [
         { order: { $in: deliveredOrderIds } },
         { orderId: { $in: deliveredOrderGroupIds } }
       ]
-    }).lean()
+    }
+    if (productId) {
+      reviewFilter.product = new mongoose.Types.ObjectId(productId)
+    }
+
+    const existingReviews = await Review.find(reviewFilter).lean()
 
     const reviewedOrderIds = new Set([
       ...existingReviews.map((r) => String(r.order || '')),
@@ -196,7 +203,9 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         canReview: false,
         alreadyReviewed: true,
         reason: 'already_reviewed',
-        message: 'You have already submitted a review for your delivered order of this product.'
+        message: productId
+          ? 'You have already submitted a review for your delivered order of this product.'
+          : 'You have already submitted a review for your delivered orders.'
       })
     }
 
@@ -208,9 +217,10 @@ router.get('/eligibility', authMiddleware, async (req, res) => {
         _id: o._id,
         inquiryId: o.inquiryId,
         orderGroupId: o.orderGroupId,
+        productId: o.animalId,
+        productName: o.animalName || 'Product',
         status: o.status,
-        date: o.createdAt || o.date,
-        animalName: o.animalName
+        date: o.createdAt || o.date
       })),
       message: 'You are eligible to review this verified purchase.'
     })
@@ -243,11 +253,6 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Extract input from body (DO NOT trust isVerifiedPurchase, role, or user from body!)
     const { productId, orderId, rating, comment } = req.body || {}
-
-    // Input Validation
-    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ success: false, message: 'A valid product ID is required' })
-    }
 
     if (!orderId) {
       return res.status(400).json({ success: false, message: 'An eligible order ID is required' })
@@ -297,11 +302,14 @@ router.post('/', authMiddleware, async (req, res) => {
       })
     }
 
-    // 3. Verify product belongs to this order
-    const orderProductId = String(order.animalId || '').trim()
-    const targetProductId = String(productId).trim()
+    // 3. Resolve & verify target product ID
+    const targetProductId = String(productId || order.animalId || '').trim()
+    if (!targetProductId || !mongoose.Types.ObjectId.isValid(targetProductId)) {
+      return res.status(400).json({ success: false, message: 'A valid product ID could not be identified for this order' })
+    }
 
-    if (orderProductId !== targetProductId) {
+    const orderProductId = String(order.animalId || '').trim()
+    if (productId && orderProductId && orderProductId !== String(productId).trim()) {
       return res.status(403).json({
         success: false,
         message: 'This order does not contain the specified product.'
@@ -310,7 +318,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // 4. Prevent duplicate review for the same product from the same order
     const existingReview = await Review.findOne({
-      product: new mongoose.Types.ObjectId(productId),
+      product: new mongoose.Types.ObjectId(targetProductId),
       $or: [
         { order: order._id },
         { orderId: order.inquiryId }
@@ -328,12 +336,12 @@ router.post('/', authMiddleware, async (req, res) => {
     let productModel = 'MeatItem'
     let productName = order.animalName || 'Product'
 
-    const meatItem = await MeatItem.findById(productId).select('name').lean()
+    const meatItem = await MeatItem.findById(targetProductId).select('name').lean()
     if (meatItem) {
       productModel = 'MeatItem'
       productName = meatItem.name
     } else {
-      const animal = await Animal.findById(productId).select('name').lean()
+      const animal = await Animal.findById(targetProductId).select('name').lean()
       if (animal) {
         productModel = 'Animal'
         productName = animal.name
@@ -348,7 +356,7 @@ router.post('/', authMiddleware, async (req, res) => {
     // Create verified review (strictly backend-controlled isVerifiedPurchase!)
     const newReview = await Review.create({
       user: new mongoose.Types.ObjectId(userId),
-      product: new mongoose.Types.ObjectId(productId),
+      product: new mongoose.Types.ObjectId(targetProductId),
       productModel,
       productName,
       order: order._id,
@@ -365,7 +373,7 @@ router.post('/', authMiddleware, async (req, res) => {
     })
 
     // Recalculate dynamic rating and review counts for the product
-    await recalculateProductRating(productId, productModel)
+    await recalculateProductRating(targetProductId, productModel)
 
     return res.status(201).json({
       success: true,
