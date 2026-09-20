@@ -182,6 +182,18 @@ const animalSchema = new mongoose.Schema({
     trim: true
   },
 
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: [0, 'Rating cannot be negative'],
+    max: [5, 'Rating cannot exceed 5']
+  },
+  reviewCount: {
+    type: Number,
+    default: 0,
+    min: [0, 'Review count cannot be negative']
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

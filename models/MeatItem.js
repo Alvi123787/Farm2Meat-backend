@@ -84,6 +84,17 @@ const meatItemSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: [0, 'Rating cannot be negative'],
+      max: [5, 'Rating cannot exceed 5']
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Review count cannot be negative']
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt
