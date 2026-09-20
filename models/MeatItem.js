@@ -49,11 +49,6 @@ const meatItemSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    stock: {
-      type: Number,
-      default: 0,
-      min: [0, 'Stock cannot be negative'],
-    },
     expirationDate: {
       type: Date,
     },

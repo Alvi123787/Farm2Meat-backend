@@ -157,7 +157,7 @@ export const createItem = asyncHandler(async (req, res) => {
   const {
     name, category, badge, price, unit,
     description, imageUrl, isBestseller, isAvailable, showInHeader, sortOrder,
-    stock, expirationDate, titleTop, titleBottom,
+    expirationDate, titleTop, titleBottom,
   } = req.body
 
   if (!MeatItem) {
@@ -180,7 +180,6 @@ export const createItem = asyncHandler(async (req, res) => {
       titleTop:     titleTop || '',
       titleBottom:  titleBottom || '',
       sortOrder:    Number(sortOrder) || 0,
-      stock:        Number(stock) || 0,
       expirationDate: expirationDate || null,
       type:         'meat', // Always set to meat
     }
@@ -205,7 +204,7 @@ export const updateItem = asyncHandler(async (req, res) => {
   const allowed = [
     'name', 'category', 'badge', 'price', 'unit',
     'description', 'imageUrl', 'isBestseller', 'isAvailable', 'showInHeader', 'sortOrder',
-    'stock', 'expirationDate', 'titleTop', 'titleBottom',
+    'expirationDate', 'titleTop', 'titleBottom',
   ]
 
   // Only pick allowed fields from the body
@@ -216,7 +215,6 @@ export const updateItem = asyncHandler(async (req, res) => {
 
   if (updates.price !== undefined) updates.price = Number(updates.price)
   if (updates.sortOrder !== undefined) updates.sortOrder = Number(updates.sortOrder)
-  if (updates.stock !== undefined) updates.stock = Number(updates.stock)
 
   const item = await MeatItem.findByIdAndUpdate(
     req.params.id,
