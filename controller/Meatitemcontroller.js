@@ -124,8 +124,11 @@ export const getByCategory = asyncHandler(async (req, res) => {
 
   // Preserve category display order
   const ordered = {}
-  for (const cat of ['mutton', 'beef', 'chicken', 'fish']) {
+  for (const cat of ['mutton', 'beef', 'chicken', 'fish', 'seafood']) {
     if (grouped[cat]) ordered[cat] = grouped[cat]
+  }
+  for (const cat of Object.keys(grouped)) {
+    if (!ordered[cat]) ordered[cat] = grouped[cat]
   }
 
   sendSuccess(res, ordered)

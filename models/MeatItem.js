@@ -19,8 +19,8 @@ const meatItemSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Category is required'],
       enum: {
-        values: ['mutton', 'beef', 'chicken', 'fish'],
-        message: 'Category must be one of: mutton, beef, chicken, fish',
+        values: ['mutton', 'beef', 'chicken', 'fish', 'seafood'],
+        message: 'Category must be one of: mutton, beef, chicken, fish, seafood',
       },
       lowercase: true,
     },

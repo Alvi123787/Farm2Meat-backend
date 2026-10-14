@@ -1448,7 +1448,7 @@ router.post('/fix-item-type', authMiddleware, adminMiddleware, async (req, res) 
         // If neither, check category/breed/name for clues
         const nameLower = (inquiry.animalName || '').toLowerCase()
         const categoryLower = (inquiry.category || '').toLowerCase()
-        const meatKeywords = ['mutton', 'beef', 'chicken', 'fish', 'meat', 'kg', '500g', 'piece']
+        const meatKeywords = ['mutton', 'beef', 'chicken', 'fish', 'seafood', 'prawn', 'prawns', 'meat', 'kg', '500g', 'piece']
         const isProbablyMeat = meatKeywords.some(keyword => 
           nameLower.includes(keyword) || categoryLower.includes(keyword)
         )
