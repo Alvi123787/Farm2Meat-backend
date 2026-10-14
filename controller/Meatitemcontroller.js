@@ -182,6 +182,11 @@ export const createItem = asyncHandler(async (req, res) => {
       sortOrder:    Number(sortOrder) || 0,
       expirationDate: expirationDate || null,
       type:         'meat', // Always set to meat
+      fishOptions:  req.body.fishOptions || {
+        isFish: category === 'fish',
+        availableCuts: [],
+        sizeVariants: []
+      },
     }
 
     console.log('🛠️ Attempting to create MeatItem with data:', itemData)
@@ -204,7 +209,7 @@ export const updateItem = asyncHandler(async (req, res) => {
   const allowed = [
     'name', 'category', 'badge', 'price', 'unit',
     'description', 'imageUrl', 'isBestseller', 'isAvailable', 'showInHeader', 'sortOrder',
-    'expirationDate', 'titleTop', 'titleBottom',
+    'expirationDate', 'titleTop', 'titleBottom', 'fishOptions',
   ]
 
   // Only pick allowed fields from the body

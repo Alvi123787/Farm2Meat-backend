@@ -90,6 +90,23 @@ const meatItemSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Review count cannot be negative']
     },
+    fishOptions: {
+      isFish: {
+        type: Boolean,
+        default: false,
+      },
+      availableCuts: {
+        type: [String],
+        default: [],
+      },
+      sizeVariants: [
+        {
+          label: { type: String, trim: true },
+          minWeight: { type: Number, required: true },
+          maxWeight: { type: Number, required: true },
+        }
+      ]
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

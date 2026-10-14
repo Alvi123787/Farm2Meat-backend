@@ -21,6 +21,7 @@ import butcherRoutes from './routes/butcherRoutes.js'
 import uploadRoutes from './routes/uploadRoutes.js'
 import meatItemRoutes from './routes/MeatItemroutes.js'
 import customOrderRoutes from './routes/customOrderRoutes.js'
+import fishCutRoutes from './routes/fishCutRoutes.js'
 import { guestSessionMiddleware } from './middleware/guestSessionMiddleware.js'
 import { optionalAuthMiddleware } from './middleware/authMiddleware.js'
 import { activityMiddleware } from './middleware/activityMiddleware.js'
@@ -86,6 +87,7 @@ app.use('/api/butchers', butcherRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/meat-items', meatItemRoutes)
 app.use('/api/custom-orders', customOrderRoutes)
+app.use('/api/fish-cuts', fishCutRoutes)
 app.get('/api/test', (req, res) => res.json({ success: true, message: 'Server is working!' }))
 
 // ── JSON / multer / upload errors → JSON (avoid HTML + huge stacks for client mistakes) ──

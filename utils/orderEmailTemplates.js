@@ -69,6 +69,29 @@ const baseTemplate = ({ siteName, title, message, content, supportEmail, support
   `
 }
 
+const formatFishMetaHtml = (it, borderColor = '#0284c7') => {
+  if (!it.fishDetails && it.category !== 'fish') return ''
+  const fd = it.fishDetails || {}
+  if (!fd.selectedCut && !fd.sizeBracket && !fd.estimatedPriceMin) return ''
+
+  const cutText = fd.selectedCut ? (fd.isCustomCut ? `Custom: ${fd.selectedCut}` : fd.selectedCut) : ''
+  const sizeText = fd.sizeBracket || ''
+  const headText = fd.includeHead ? 'Included (Yes) ✅' : 'Not Included (No) ❌'
+  const estPrice = (fd.estimatedPriceMin && fd.estimatedPriceMax)
+    ? `Rs. ${fd.estimatedPriceMin.toLocaleString('en-PK')} - Rs. ${fd.estimatedPriceMax.toLocaleString('en-PK')}`
+    : ''
+
+  return `
+    <div style="margin-top:6px;font-size:12px;color:#333;background:#f8fafc;padding:8px 10px;border-radius:6px;border-left:3px solid ${borderColor};line-height:1.6">
+      ${cutText ? `<div><strong>Cut:</strong> ${escapeHtml(cutText)}</div>` : ''}
+      ${sizeText ? `<div><strong>Fish Size:</strong> ${escapeHtml(sizeText)}</div>` : ''}
+      <div><strong>Fish Head:</strong> ${headText}</div>
+      ${estPrice ? `<div><strong>Estimated Bill:</strong> <span style="color:#0284c7;font-weight:700">${estPrice}</span></div>` : ''}
+      <div style="font-size:11px;color:#64748b;font-style:italic;margin-top:2px">Note: Bill is based on gross fish weight (before cutting). Final bill reflects exact piece weight.</div>
+    </div>
+  `
+}
+
 /**
  * Order Confirmation Email Template
  */
@@ -103,11 +126,13 @@ export const buildOrderConfirmationEmailHtml = ({
     const subtotal = Number(it.subtotal || price * qty)
     const categoryBadge = it.category ? ` <span style="font-size:11px;color:#888;font-weight:normal">(${escapeHtml(it.category)})</span>` : ''
     const weightBadge = it.weight ? ` <span style="font-size:11px;color:#888;font-weight:normal">(${escapeHtml(it.weight)} kg)</span>` : ''
+    const fishMeta = formatFishMetaHtml(it, '#0284c7')
 
     return `
       <tr>
         <td style="padding:12px 10px;border-top:1px solid #eee;color:#222;font-weight:600">
           ${escapeHtml(it.name)}${categoryBadge}${weightBadge}
+          ${fishMeta}
         </td>
         <td style="padding:12px 10px;border-top:1px solid #eee;color:#555;text-align:center">
           ${qty} ${unit}
@@ -392,11 +417,13 @@ export const buildAdminOrderNotificationEmailHtml = ({
     const subtotal = Number(it.subtotal || price * qty)
     const categoryBadge = it.category ? ` <span style="font-size:11px;background:#f5f5f5;color:#666;padding:2px 6px;border-radius:4px;text-transform:capitalize">${escapeHtml(it.category)}</span>` : ''
     const weightBadge = it.weight ? ` <span style="font-size:11px;color:#888">(${escapeHtml(it.weight)} kg)</span>` : ''
+    const fishMeta = formatFishMetaHtml(it, '#e65100')
 
     return `
       <tr>
         <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#222;font-weight:600">
           ${escapeHtml(it.name)}${categoryBadge}${weightBadge}
+          ${fishMeta}
         </td>
         <td style="padding:10px 12px;border-top:1px solid #ffe0b2;color:#555;text-align:center">
           ${qty} ${unit}

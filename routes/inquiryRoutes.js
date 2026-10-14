@@ -7,6 +7,7 @@ import User from '../models/User.js'
 import GuestUser from '../models/GuestUser.js'
 import CartSession from '../models/CartSession.js'
 import Notification from '../models/Notification.js'
+import FishCut from '../models/FishCut.js'
 import { authMiddleware, adminMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware.js'
 import { sendEmail } from '../utils/mailer.js'
 import { getFrontendOrigin } from '../utils/config.js'
@@ -228,10 +229,19 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
       advanceAmount,
       remainingAmount,
       butcher: req.body.butcher || null,
+      fishDetails: req.body.fishDetails || {},
       avatar: avatar || ''
     })
 
     const saved = await newInquiry.save()
+
+    if (req.body.fishDetails?.isCustomCut && req.body.fishDetails?.selectedCut) {
+      FishCut.findOneAndUpdate(
+        { name: { $regex: new RegExp(`^${req.body.fishDetails.selectedCut.trim()}$`, 'i') } },
+        { $setOnInsert: { name: req.body.fishDetails.selectedCut.trim(), isCustom: true }, $inc: { usageCount: 1 } },
+        { upsert: true }
+      ).catch(err => console.error('Failed to auto-save custom fish cut:', err))
+    }
 
     if (saved.butcher) {
       await saved.populate('butcher')
@@ -310,7 +320,8 @@ router.post('/create', optionalAuthMiddleware, async (req, res) => {
         category: saved.category || '',
         itemType: saved.itemType || (isMeat ? 'meat' : 'livestock'),
         unitPrice: saved.price || parsedPrice || 0,
-        subtotal: saved.totalAmount || (parsedPrice * (saved.quantity || qty || 1))
+        subtotal: saved.totalAmount || (parsedPrice * (saved.quantity || qty || 1)),
+        fishDetails: saved.fishDetails || {}
       }
 
       // Always send admin notification
@@ -603,10 +614,19 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         advanceAmount: itemAdvance,
         remainingAmount: itemRemaining,
         butcher: req.body.butcher || null,
+        fishDetails: item.fishDetails || {},
         avatar: avatar || ''
       })
 
       const saved = await inquiry.save()
+
+      if (item.fishDetails?.isCustomCut && item.fishDetails?.selectedCut) {
+        FishCut.findOneAndUpdate(
+          { name: { $regex: new RegExp(`^${item.fishDetails.selectedCut.trim()}$`, 'i') } },
+          { $setOnInsert: { name: item.fishDetails.selectedCut.trim(), isCustom: true }, $inc: { usageCount: 1 } },
+          { upsert: true }
+        ).catch(err => console.error('Failed to auto-save custom fish cut:', err))
+      }
       // Create admin notification
       await Notification.create({
         type: 'inquiry_created',
@@ -686,7 +706,8 @@ router.post('/bulk', optionalAuthMiddleware, async (req, res) => {
         category: i.category || '',
         itemType: i.itemType || 'meat',
         unitPrice: i.price || 0,
-        subtotal: i.totalAmount || ((i.price || 0) * (i.quantity || 1))
+        subtotal: i.totalAmount || ((i.price || 0) * (i.quantity || 1)),
+        fishDetails: i.fishDetails || {}
       }))
 
       const adminHtml = buildAdminOrderNotificationEmailHtml({

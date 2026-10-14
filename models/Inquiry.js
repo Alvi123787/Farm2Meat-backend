@@ -152,6 +152,18 @@ const inquirySchema = new mongoose.Schema({
     ref: 'Butcher',
     default: null
   },
+  fishDetails: {
+    selectedCut: { type: String, default: '', trim: true },
+    isCustomCut: { type: Boolean, default: false },
+    customCutNote: { type: String, default: '', trim: true },
+    sizeBracket: { type: String, default: '', trim: true },
+    minWeight: { type: Number, default: 0 },
+    maxWeight: { type: Number, default: 0 },
+    estimatedPriceMin: { type: Number, default: 0 },
+    estimatedPriceMax: { type: Number, default: 0 },
+    includeHead: { type: Boolean, default: false },
+    pieces: { type: Number, default: 1 }
+  },
   date: {
     type: Date,
     default: Date.now
